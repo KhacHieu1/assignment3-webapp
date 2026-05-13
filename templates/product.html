@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.product_title }} - Beauty & Cosmetics Store</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <h1>Beauty & Cosmetics Store</h1>
+        <p>Discover your favourite beauty products</p>
+    </header>
+
+    <main>
+        <!-- Back to search button -->
+        <div class="back-btn-container">
+            <a href="javascript:history.back()" class="back-btn">← Back to Results</a>
+        </div>
+
+        <!-- Product details section -->
+        <div class="product-detail">
+            <h2>{{ product.product_title }}</h2>
+            <img src="{{ url_for('static', filename=product.image) }}" 
+                 alt="{{ product.product_title }}"
+                 class="product-detail-img">
+            <p class="brand">Brand: <strong>{{ product.brand_name }}</strong></p>
+            <p class="price">Price: <strong>₹{{ product.price }}</strong></p>
+            <p class="rating">Average Rating: ⭐ <strong>{{ product.avg_product_rating }}</strong></p>
+        </div>
+
+        <!-- Reviews section -->
+        <div class="reviews-section">
+            <h3>Customer Reviews ({{ reviews|length }})</h3>
+
+            {% for review in reviews %}
+            <div class="review-card">
+                <div class="review-header">
+                    <strong>{{ review.review_title }}</strong>
+                    <span class="review-rating">⭐ {{ review.review_rating }}</span>
+                </div>
+                <p class="review-text">{{ review.review_text }}</p>
+                <p class="review-buyer">
+                    {% if review.is_a_buyer == True or review.is_a_buyer == 'True' %}
+                        ✅ Verified Buyer
+                    {% else %}
+                        ❌ Not a Verified Buyer
+                    {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+
+    </main>
+
+</body>
+</html>

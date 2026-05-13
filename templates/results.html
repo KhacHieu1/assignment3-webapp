@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - Beauty & Cosmetics Store</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <h1>Beauty & Cosmetics Store</h1>
+        <p>Discover your favourite beauty products</p>
+    </header>
+
+    <main>
+        <!-- Search bar stays on results page so user can search again -->
+        <div class="search-container">
+            <form action="/search" method="GET">
+                <input 
+                    type="text" 
+                    name="query" 
+                    value="{{ query }}"
+                    placeholder="Search by brand or product name..."
+                >
+                <button type="submit">Search</button>
+            </form>
+        </div>
+
+        <!-- Show how many products matched -->
+        <div class="results-info">
+            <p>Found <strong>{{ count }}</strong> products matching "<strong>{{ query }}</strong>"</p>
+        </div>
+
+        <!-- Display each matched product as a card -->
+        {% if results %}
+        <div class="results-grid">
+            {% for product in results %}
+            <div class="product-card">
+                <img src="{{ url_for('static', filename=product.image) }}" 
+                     alt="{{ product.product_title }}"
+                     class="product-img">
+                <h3>{{ product.product_title }}</h3>
+                <p class="brand">{{ product.brand_name }}</p>
+                <p class="price">₹{{ product.price }}</p>
+                <p class="rating">⭐ {{ product.avg_product_rating }}</p>
+                <a href="/product/{{ product.review_id }}" class="view-btn">View Details</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-results">No products found for "{{ query }}". Try a different keyword.</p>
+        {% endif %}
+
+    </main>
+
+</body>
+</html>
