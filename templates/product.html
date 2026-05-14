@@ -1,58 +1,132 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ product.product_title }} - Beauty & Cosmetics Store</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}{{ product.product_title[:60] }}{% endblock %}
+{% block body_class %}page-product{% endblock %}
 
-    <header>
-        <h1>Beauty & Cosmetics Store</h1>
-        <p>Discover your favourite beauty products</p>
-    </header>
-
-    <main>
-        <!-- Back to search button -->
-        <div class="back-btn-container">
-            <a href="javascript:history.back()" class="back-btn">← Back to Results</a>
+{% block content %}
+<div class="product-layout">
+    <div class="product-gallery">
+        <div class="product-gallery-main">
+            <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.product_title }}" width="640" height="800" fetchpriority="high">
+            <span class="badge badge-ai" title="Task integration">AI-enhanced page</span>
         </div>
+    </div>
 
-        <!-- Product details section -->
-        <div class="product-detail">
-            <h2>{{ product.product_title }}</h2>
-            <img src="{{ url_for('static', filename=product.image) }}" 
-                 alt="{{ product.product_title }}"
-                 class="product-detail-img">
-            <p class="brand">Brand: <strong>{{ product.brand_name }}</strong></p>
-            <p class="price">Price: <strong>₹{{ product.price }}</strong></p>
-            <p class="rating">Average Rating: ⭐ <strong>{{ product.avg_product_rating }}</strong></p>
-        </div>
+    <div class="product-info-col">
+        <p class="eyebrow">{{ product.category }} · <span class="stock-pill">In catalogue</span></p>
+        <h1 class="product-page-title">{{ product.product_title }}</h1>
+        <p class="product-brand-line"><span class="product-brand-strong">{{ product.brand_name }}</span></p>
 
-        <!-- Reviews section -->
-        <div class="reviews-section">
-            <h3>Customer Reviews ({{ reviews|length }})</h3>
-
-            {% for review in reviews %}
-            <div class="review-card">
-                <div class="review-header">
-                    <strong>{{ review.review_title }}</strong>
-                    <span class="review-rating">⭐ {{ review.review_rating }}</span>
-                </div>
-                <p class="review-text">{{ review.review_text }}</p>
-                <p class="review-buyer">
-                    {% if review.is_a_buyer == True or review.is_a_buyer == 'True' %}
-                        ✅ Verified Buyer
-                    {% else %}
-                        ❌ Not a Verified Buyer
-                    {% endif %}
-                </p>
+        <div class="product-price-row">
+            <span class="price-xl">₹{{ product.price }}</span>
+            <div class="rating-block">
+                <span class="rating-stars" aria-label="Average product rating">{{ "%.1f"|format(product.avg_product_rating|float) }} / 5</span>
+                <span class="rating-count">{{ product.review_count }} reviews</span>
             </div>
-            {% endfor %}
         </div>
 
-    </main>
+        <div class="product-actions-row">
+            <a href="{{ url_for('create_review', review_id=product.review_id) }}" class="btn btn-primary btn-lg">Write a review</a>
+            <button type="button" class="btn btn-ghost" data-scroll-to="#similar">Similar picks</button>
+        </div>
 
-</body>
-</html>
+        <section class="panel" aria-labelledby="summary-heading">
+            <h2 id="summary-heading" class="panel-title">Rating summary</h2>
+            <div class="summary-grid">
+                <div>
+                    <p class="stat-label">Buyer ratio</p>
+                    <p class="stat-value">{{ product.buyer_ratio }}%</p>
+                    <div class="progress"><span style="width: {{ ([product.buyer_ratio, 100])|min }}%"></span></div>
+                </div>
+                <div>
+                    <p class="stat-label">Avg review stars</p>
+                    <p class="stat-value">{% if product.avg_review_rating is not none %}{{ "%.1f"|format(product.avg_review_rating|float) }}{% else %}—{% endif %}</p>
+                    <p class="stat-hint">From individual review ratings</p>
+                </div>
+            </div>
+            <div class="bar-chart" aria-label="Sentiment proxy: buyer vs not">
+                <div class="bar-row"><span>Reported buyer</span><div class="bar"><span style="width: {{ product.buyer_ratio }}%"></span></div></div>
+                <div class="bar-row"><span>Not buyer</span><div class="bar bar-muted"><span style="width: {{ 100 - product.buyer_ratio }}%"></span></div></div>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="desc-heading">
+            <h2 id="desc-heading" class="panel-title">Description</h2>
+            <p class="prose">{{ product.description }}</p>
+            {% if product.tags %}
+            <ul class="tag-list" aria-label="Keywords from processed text">
+                {% for t in product.tags %}
+                <li><a href="{{ url_for('search', query=t) }}">{{ t }}</a></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+<section class="section section-reviews" aria-labelledby="reviews-heading">
+    <div class="section-head row-between">
+        <div>
+            <h2 id="reviews-heading" class="section-title">Reviews</h2>
+            <p class="section-desc">Each card shows reviewer content—ready for predicted vs actual buyer labels.</p>
+        </div>
+        <a href="{{ url_for('create_review', review_id=product.review_id) }}" class="btn btn-primary">Add yours</a>
+    </div>
+    <div class="review-list">
+        {% for review in reviews %}
+        <article class="review-card-pro">
+            <div class="review-card-top">
+                <div>
+                    <h3 class="review-card-title">{{ review.review_title }}</h3>
+                    <p class="review-meta"><span class="reviewer">Reviewer #{{ review.review_id }}</span> · <span>Rating {{ review.review_rating }}</span></p>
+                </div>
+                <div class="review-badges">
+                    {% if review.is_buyer %}
+                    <span class="pill pill-buyer">Verified-style buyer</span>
+                    {% else %}
+                    <span class="pill pill-muted">Not buyer</span>
+                    {% endif %}
+                    <span class="pill pill-ai">AI: {% if review.is_buyer %}Likely buyer{% else %}Unlikely buyer{% endif %}</span>
+                </div>
+            </div>
+            <p class="review-body">{{ review.review_text }}</p>
+            <div class="review-card-actions">
+                <a href="{{ url_for('review_detail', review_id=review.review_id) }}" class="text-link">Open review URL</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section id="similar" class="section section-tint" aria-labelledby="similar-heading">
+    <div class="section-head row-between">
+        <div>
+            <h2 id="similar-heading" class="section-title">Similar products you may like</h2>
+            <p class="section-desc">Same-brand neighbours—swap in TF‑IDF + cosine similarity or embeddings for Task 3.</p>
+        </div>
+        <a href="{{ url_for('recommendations_page', review_id=product.review_id) }}" class="text-link">See all</a>
+    </div>
+    {% if similar_products %}
+    <div class="product-grid product-grid-compact">
+        {% for p in similar_products %}
+        <article class="product-card product-card-compact">
+            <a href="{{ url_for('product_detail', review_id=p.review_id) }}" class="product-card-link">
+                <div class="product-card-media">
+                    <img src="{{ url_for('static', filename=p.image) }}" alt="" loading="lazy" width="320" height="400">
+                    <span class="relevance-pill relevance-pill-soft">Similarity ready</span>
+                </div>
+                <div class="product-card-body">
+                    <p class="product-brand">{{ p.brand_name }}</p>
+                    <h3 class="product-name">{{ p.product_title }}</h3>
+                    <p class="product-meta"><span class="price">₹{{ p.price }}</span><span class="rating">{{ "%.1f"|format(p.avg_product_rating|float) }} ★</span></p>
+                </div>
+            </a>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p class="empty-text">No recommendations available yet for this product.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

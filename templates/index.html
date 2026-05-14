@@ -1,31 +1,107 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beauty & Cosmetics Store</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block body_class %}page-home{% endblock %}
 
-    <header>
-        <h1>Beauty & Cosmetics Store</h1>
-        <p>Discover your favourite beauty products</p>
-    </header>
+{% block content %}
+<section class="hero hero-carousel" aria-label="Featured">
+    <div class="hero-slides">
+        <article class="hero-slide is-active" data-hero-slide>
+            <div class="hero-copy">
+                <p class="eyebrow">Curated beauty · NLP-powered</p>
+                <h1 class="hero-title">Discover products worth your routine.</h1>
+                <p class="hero-sub">Search across brands and descriptions, read verified-style reviews, and explore similar picks—built for HD-level clarity.</p>
+                <a href="#featured" class="btn btn-outline-light">Shop featured</a>
+            </div>
+            <div class="hero-visual" aria-hidden="true"></div>
+        </article>
+        <article class="hero-slide" data-hero-slide>
+            <div class="hero-copy">
+                <p class="eyebrow">Reviews that teach the model</p>
+                <h1 class="hero-title">Write a review. See AI buyer insight.</h1>
+                <p class="hero-sub">Milestone flow: detail → create review → prediction → save → recommendations.</p>
+                <a href="#top-rated" class="btn btn-outline-light">Top rated</a>
+            </div>
+            <div class="hero-visual hero-visual-alt" aria-hidden="true"></div>
+        </article>
+    </div>
+    <div class="hero-dots" role="tablist" aria-label="Hero slides">
+        <button type="button" class="hero-dot is-active" aria-selected="true" data-hero-dot="0"><span class="sr-only">Slide 1</span></button>
+        <button type="button" class="hero-dot" aria-selected="false" data-hero-dot="1"><span class="sr-only">Slide 2</span></button>
+    </div>
+</section>
 
-    <main>
-        <div class="search-container">
-            <form action="/search" method="GET">
-                <input 
-                    type="text" 
-                    name="query" 
-                    placeholder="Search by brand or product name..." 
-                    required
-                >
-                <button type="submit">Search</button>
-            </form>
+<section class="section home-search-cta" aria-labelledby="home-search-heading">
+    <div class="section-head">
+        <h2 id="home-search-heading" class="section-title">Find your next favourite</h2>
+        <p class="section-desc">Partial matching on brand, title, and processed review text—typo-friendly apostrophe handling.</p>
+    </div>
+    <form class="home-hero-search" action="{{ url_for('search') }}" method="get" role="search">
+        <input type="search" name="query" class="input-lg" placeholder="Try “Olay”, “moisturiser”, or “lipstick”…" required>
+        <button type="submit" class="btn btn-primary btn-lg">Search</button>
+    </form>
+</section>
+
+<section id="featured" class="section">
+    <div class="section-head row-between">
+        <div>
+            <h2 class="section-title">Featured products</h2>
+            <p class="section-desc">Fresh picks from the catalogue—balanced grid, lazy-friendly cards.</p>
         </div>
-    </main>
+        <a href="{{ url_for('search', query='cream') }}" class="text-link">View all</a>
+    </div>
+    <div class="product-grid" data-product-grid>
+        {% for p in featured_products %}
+        <article class="product-card" data-lazy-card>
+            <a href="{{ url_for('product_detail', review_id=p.review_id) }}" class="product-card-link">
+                <div class="product-card-media">
+                    <img src="{{ url_for('static', filename=p.image) }}" alt="" loading="lazy" decoding="async" width="400" height="500">
+                    <span class="badge badge-new">Editor’s pick</span>
+                </div>
+                <div class="product-card-body">
+                    <p class="product-brand">{{ p.brand_name }}</p>
+                    <h3 class="product-name">{{ p.product_title }}</h3>
+                    <p class="product-meta"><span class="price">₹{{ p.price }}</span><span class="rating" aria-label="Average rating">{{ "%.1f"|format(p.avg_product_rating|float) }} ★</span></p>
+                </div>
+            </a>
+        </article>
+        {% endfor %}
+    </div>
+</section>
 
-</body>
-</html>
+<section class="section section-tint">
+    <div class="section-head">
+        <h2 class="section-title">Popular brands</h2>
+        <p class="section-desc">Quick paths—mirrors “categories” usability from the brief.</p>
+    </div>
+    <div class="brand-chips">
+        {% for b in popular_brands %}
+        <a class="chip" href="{{ url_for('search', query=b) }}">{{ b }}</a>
+        {% endfor %}
+    </div>
+</section>
+
+<section id="top-rated" class="section">
+    <div class="section-head row-between">
+        <div>
+            <h2 class="section-title">Top rated</h2>
+            <p class="section-desc">Sorted by average product rating—social proof at a glance.</p>
+        </div>
+    </div>
+    <div class="product-grid product-grid-compact">
+        {% for p in top_rated_products %}
+        <article class="product-card product-card-compact">
+            <a href="{{ url_for('product_detail', review_id=p.review_id) }}" class="product-card-link">
+                <div class="product-card-media">
+                    <img src="{{ url_for('static', filename=p.image) }}" alt="" loading="lazy" width="320" height="400">
+                </div>
+                <div class="product-card-body">
+                    <p class="product-brand">{{ p.brand_name }}</p>
+                    <h3 class="product-name">{{ p.product_title }}</h3>
+                    <p class="product-meta"><span class="price">₹{{ p.price }}</span><span class="rating">{{ "%.1f"|format(p.avg_product_rating|float) }} ★</span></p>
+                </div>
+            </a>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

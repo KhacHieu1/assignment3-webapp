@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Recommendations · {{ product.product_title[:40] }}{% endblock %}
+{% block body_class %}page-recommendations{% endblock %}
+
+{% block content %}
+<div class="narrow-page" style="max-width: var(--max);">
+    <header class="page-intro">
+        <p class="eyebrow">Task 3 · Similar items</p>
+        <h1 class="page-title">Curated for you</h1>
+        <p class="page-lead">Because you viewed <strong>{{ product.product_title }}</strong> — ranked neighbours (swap in embedding scores when ready).</p>
+    </header>
+    {% if similar_products %}
+    <div class="product-grid">
+        {% for p in similar_products %}
+        <article class="product-card">
+            <a href="{{ url_for('product_detail', review_id=p.review_id) }}" class="product-card-link">
+                <div class="product-card-media">
+                    <img src="{{ url_for('static', filename=p.image) }}" alt="" loading="lazy" width="400" height="500">
+                    <span class="relevance-pill">Score-ready</span>
+                </div>
+                <div class="product-card-body">
+                    <p class="product-brand">{{ p.brand_name }}</p>
+                    <h3 class="product-name">{{ p.product_title }}</h3>
+                    <p class="product-meta"><span class="price">₹{{ p.price }}</span><span class="rating">{{ "%.1f"|format(p.avg_product_rating|float) }} ★</span></p>
+                </div>
+            </a>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state empty-state-large">
+        <h2 class="empty-title">No recommendations available yet</h2>
+        <p class="empty-text">Once your similarity matrix is wired, this grid becomes your HD showcase.</p>
+        <a href="{{ url_for('product_detail', review_id=product.review_id) }}" class="btn btn-primary">Back to product</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

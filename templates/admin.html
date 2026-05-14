@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Insights{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <header class="page-intro admin-intro">
+        <p class="eyebrow">Additional feature · Analytics</p>
+        <h1 class="page-title">Command centre</h1>
+        <p class="page-lead">Live aggregates from your dataframe—pair with real model metrics when training is wired.</p>
+    </header>
+
+    <section class="stat-grid" aria-label="Key statistics">
+        <article class="stat-card">
+            <p class="stat-label">Unique products</p>
+            <p class="stat-number">{{ stats.products }}</p>
+        </article>
+        <article class="stat-card">
+            <p class="stat-label">Total reviews</p>
+            <p class="stat-number">{{ stats.reviews }}</p>
+        </article>
+        <article class="stat-card">
+            <p class="stat-label">Buyer ratio</p>
+            <p class="stat-number">{{ stats.buyer_ratio }}%</p>
+        </article>
+        <article class="stat-card">
+            <p class="stat-label">Top brand</p>
+            <p class="stat-number stat-number-sm">{{ stats.top_brand }}</p>
+        </article>
+    </section>
+
+    <div class="admin-grid">
+        <section class="panel admin-chart-card">
+            <h2 class="panel-title">Review rating distribution</h2>
+            <div class="chart-bars" role="img" aria-label="Bar chart of star ratings">
+                {% for star in ["5","4","3","2","1"] %}
+                {% set v = rating_distribution.get(star, 0) %}
+                <div class="chart-bar-row">
+                    <span>{{ star }}★</span>
+                    <div class="chart-bar"><span style="width: {{ (v / stats.reviews * 100) if stats.reviews else 0 }}%"></span></div>
+                    <span class="chart-val">{{ v }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel admin-chart-card">
+            <h2 class="panel-title">Most reviewed brands</h2>
+            <div class="chart-bars">
+                {% set m = brand_values|max if brand_values else 1 %}
+                {% for label in brand_labels %}
+                {% set val = brand_values[loop.index0] %}
+                <div class="chart-bar-row">
+                    <span class="chart-label" title="{{ label }}">{{ label[:18] }}{% if label|length > 18 %}…{% endif %}</span>
+                    <div class="chart-bar"><span style="width: {{ (val / m * 100) if m else 0 }}%"></span></div>
+                    <span class="chart-val">{{ val }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel admin-chart-card">
+            <h2 class="panel-title">Model performance (placeholder)</h2>
+            <p class="panel-muted">Swap with confusion matrix / test-set metrics from your notebook.</p>
+            <ul class="metrics-list">
+                <li><span>Accuracy</span><strong>{{ "%.0f"|format(model_metrics.accuracy * 100) }}%</strong></li>
+                <li><span>Precision</span><strong>{{ "%.0f"|format(model_metrics.precision * 100) }}%</strong></li>
+                <li><span>Recall</span><strong>{{ "%.0f"|format(model_metrics.recall * 100) }}%</strong></li>
+            </ul>
+        </section>
+
+        <section class="panel admin-chart-card">
+            <h2 class="panel-title">Search analytics (UI stub)</h2>
+            <p class="panel-muted">Wire logging of queries for “top searches” and zero-hit queries.</p>
+            <ul class="hint-list">
+                <li>Top searches: (pending instrumentation)</li>
+                <li>Failed searches: (pending instrumentation)</li>
+            </ul>
+        </section>
+    </div>
+</div>
+{% endblock %}
