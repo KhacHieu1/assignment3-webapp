@@ -7,7 +7,7 @@
     <header class="page-intro">
         <p class="eyebrow">Create review · {{ product.brand_name }}</p>
         <h1 class="page-title">Share your experience</h1>
-        <p class="page-lead">For <strong>{{ product.product_title }}</strong>. Type your review and the model will predict the rating and sentiment.</p>
+        <p class="page-lead">For <strong>{{ product.product_title }}</strong>. Choose your star rating, write your review, and check the AI suggestion before you submit.</p>
     </header>
 
     <div class="create-grid">
@@ -15,6 +15,16 @@
             <div class="form-row">
                 <label for="title">Review title <span class="req">*</span></label>
                 <input class="input" id="title" name="title" type="text" required minlength="3" maxlength="120" placeholder="Headline for your review">
+            </div>
+            <div class="form-row">
+                <span class="label" id="rating-label">Your star rating <span class="req">*</span></span>
+                <div class="star-rating-input" data-star-rating role="group" aria-labelledby="rating-label">
+                    <input type="hidden" name="rating" id="rating" value="" data-rating-input required>
+                    {% for i in range(1, 6) %}
+                    <button type="button" class="star-btn" data-star-value="{{ i }}" aria-label="{{ i }} out of 5 stars">★</button>
+                    {% endfor %}
+                </div>
+                <p class="field-hint" data-rating-hint>Select 1–5 stars. The AI may suggest a rating while you type—you can change it anytime.</p>
             </div>
             <div class="form-row">
                 <label for="body">Review description <span class="req">*</span></label>
@@ -28,13 +38,13 @@
 
             <fieldset class="panel panel-inner">
                 <legend class="panel-title-sm">AI prediction</legend>
-                <p class="panel-muted">The Flask app uses the title and description with the trained review model.</p>
+                <p class="panel-muted">Suggested rating from your title and description—you choose the final stars above.</p>
                 <div class="prediction-box" data-prediction-box>
                     <div class="prediction-placeholder" data-prediction-placeholder>
                         <p>Start typing your description to get a prediction.</p>
                     </div>
                     <div class="prediction-result" hidden data-prediction-result>
-                        <p class="prediction-label">AI prediction</p>
+                        <p class="prediction-label">AI suggestion</p>
                         <p class="prediction-value" data-prediction-label>—</p>
                         <p class="prediction-confidence">Confidence: <strong data-prediction-confidence>—</strong></p>
                         <p class="prediction-explainer" data-prediction-explainer>The model uses your review title and description.</p>
@@ -53,9 +63,9 @@
             <h2 class="panel-title-sm">Review checklist</h2>
             <ul class="hint-list">
                 <li>Complete all required fields.</li>
+                <li>Select your star rating (1–5).</li>
                 <li>Write at least 20 characters.</li>
-                <li>Check the model prediction before submitting.</li>
-                <li>The saved star rating comes from the model.</li>
+                <li>Check the AI suggestion before submitting.</li>
             </ul>
             <div class="product-mini">
                 <img src="{{ url_for('static', filename=product.image) }}" alt="" width="120" height="150" loading="lazy">

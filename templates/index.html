@@ -9,7 +9,7 @@
             <div class="hero-copy">
                 <p class="eyebrow">Curated beauty · NLP-powered</p>
                 <h1 class="hero-title">Discover products worth your routine.</h1>
-                <p class="hero-sub">Search across brands and descriptions, read verified-style reviews, and explore similar picks—built for HD-level clarity.</p>
+                <p class="hero-sub">Find products by brand or name, read customer reviews, and discover similar items you might love.</p>
                 <a href="#featured" class="btn btn-outline-light">Shop featured</a>
             </div>
             <div class="hero-visual" aria-hidden="true"></div>
@@ -18,7 +18,6 @@
             <div class="hero-copy">
                 <p class="eyebrow">Reviews that teach the model</p>
                 <h1 class="hero-title">Write a review. See AI buyer insight.</h1>
-                <p class="hero-sub">Milestone flow: detail → create review → prediction → save → recommendations.</p>
                 <a href="#top-rated" class="btn btn-outline-light">Top rated</a>
             </div>
             <div class="hero-visual hero-visual-alt" aria-hidden="true"></div>
@@ -33,7 +32,7 @@
 <section class="section home-search-cta" aria-labelledby="home-search-heading">
     <div class="section-head">
         <h2 id="home-search-heading" class="section-title">Find your next favourite</h2>
-        <p class="section-desc">Partial matching on brand, title, and processed review text—typo-friendly apostrophe handling.</p>
+        <p class="section-desc">Search by brand or product name—we also look through review text, and small spelling differences usually still match.</p>
     </div>
     <form class="home-hero-search" action="{{ url_for('search') }}" method="get" role="search">
         <input type="search" name="query" class="input-lg" placeholder="Try “Olay”, “moisturiser”, or “lipstick”…" required>
@@ -45,7 +44,6 @@
     <div class="section-head row-between">
         <div>
             <h2 class="section-title">Featured products</h2>
-            <p class="section-desc">Fresh picks from the catalogue—balanced grid, lazy-friendly cards.</p>
         </div>
         <a href="{{ url_for('search', query='cream') }}" class="text-link">View all</a>
     </div>
@@ -71,7 +69,6 @@
 <section class="section section-tint">
     <div class="section-head">
         <h2 class="section-title">Popular brands</h2>
-        <p class="section-desc">Quick paths—mirrors “categories” usability from the brief.</p>
     </div>
     <div class="brand-chips">
         {% for b in popular_brands %}
@@ -84,7 +81,6 @@
     <div class="section-head row-between">
         <div>
             <h2 class="section-title">Top rated</h2>
-            <p class="section-desc">Sorted by average product rating—social proof at a glance.</p>
         </div>
     </div>
     <div class="product-grid product-grid-compact">

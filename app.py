@@ -55,6 +55,10 @@ def save_created_reviews():
 
 created_reviews = load_created_reviews()
 
+from recommendations import init_recommendations, get_similar_products
+
+init_recommendations(df)
+
 
 def clean_review_text(text):
     text = str(text).lower()
@@ -131,7 +135,7 @@ def train_review_model():
         random_state=seed,
         stratify=ratings,
     )
-    model = LogisticRegression(random_state=seed, max_iter=600, class_weight="balanced", solver="liblinear")
+    model = LogisticRegression(random_state=seed, max_iter=600, class_weight="balanced", solver="lbfgs")
     model.fit(X_train, y_train)
     accuracy = model.score(X_test, y_test)
     model.fit(features, ratings)
@@ -369,8 +373,7 @@ def product_detail(review_id):
         else None
     )
 
-    sim = df[(df["brand_name"] == brand) & (df["product_title"] != title)]
-    similar = unique_products(sim, 6)
+    similar = [row_to_product_card(r) for r in get_similar_products(title, 6)]
 
     product_dict = row_to_product_card(product_info)
     product_dict["category"] = str(brand) if pd.notna(brand) else "Beauty"
@@ -403,8 +406,7 @@ def recommendations_page(review_id):
     product_info = product_rows.iloc[0]
     title = product_info["product_title"]
     brand = product_info["brand_name"]
-    sim = df[(df["brand_name"] == brand) & (df["product_title"] != title)]
-    similar = unique_products(sim, 12)
+    similar = [row_to_product_card(r) for r in get_similar_products(title, 12)]
     product_dict = row_to_product_card(product_info)
     return render_template(
         "recommendations.html",
@@ -430,6 +432,7 @@ def create_review(review_id):
         review_title = request.form.get("title", "").strip()
         review_text = request.form.get("body", "").strip()
         username = request.form.get("username", "").strip()
+        rating_raw = request.form.get("rating", "").strip()
 
         errors = []
         if not 3 <= len(review_title) <= 120:
@@ -438,6 +441,12 @@ def create_review(review_id):
             errors.append("Review description must be between 20 and 2000 characters.")
         if not 2 <= len(username) <= 40:
             errors.append("Display name must be between 2 and 40 characters.")
+        try:
+            user_rating = int(rating_raw)
+        except (TypeError, ValueError):
+            user_rating = None
+        if user_rating not in (1, 2, 3, 4, 5):
+            errors.append("Please select a star rating from 1 to 5.")
 
         if errors:
             for error in errors:
@@ -457,10 +466,10 @@ def create_review(review_id):
             "product_review_id": int(review_id),
             "review_title": review_title,
             "review_text": review_text,
-            "review_rating": prediction["rating"],
+            "review_rating": user_rating,
             "author": username,
-            "is_a_buyer": prediction["rating"] >= 4,
-            "is_buyer": prediction["rating"] >= 4,
+            "is_a_buyer": user_rating >= 4,
+            "is_buyer": user_rating >= 4,
             "brand_name": str(product_info["brand_name"]),
             "product_title": str(product_info["product_title"]),
             "price": float(product_info["price"]),
@@ -473,7 +482,7 @@ def create_review(review_id):
             "prediction_source": prediction["source"],
         })
         if save_created_reviews():
-            flash("Review saved successfully with model prediction.", "success")
+            flash("Review saved successfully.", "success")
         else:
             flash("Review was created for this session, but could not be saved to created_reviews.json.", "error")
         return redirect(url_for("product_detail", review_id=review_id))

@@ -77,13 +77,20 @@
             <div class="review-card-top">
                 <div>
                     <h3 class="review-card-title">{{ review.review_title }}</h3>
-                    <p class="review-meta"><span class="reviewer">Reviewer #{{ review.review_id }}</span> · <span>Rating {{ review.review_rating }}</span></p>
+                    <p class="review-meta">
+                        <span class="reviewer">Reviewer #{{ review.review_id }}</span>
+                        <span class="review-stars" aria-label="{{ review.review_rating }} out of 5 stars">
+                            {% for i in range(1, 6) %}
+                            <span class="review-star{% if i <= review.review_rating|int %} is-filled{% endif %}">★</span>
+                            {% endfor %}
+                        </span>
+                    </p>
                 </div>
                 <div class="review-badges">
                     {% if review.created_by_user %}
                     <span class="pill pill-ai">Model: {{ review.predicted_sentiment }} / {{ review.predicted_rating }} stars</span>
                     {% else %}
-                    <span class="pill pill-muted">Dataset review</span>
+                    <span class="pill pill-muted">Previous Review</span>
                     {% endif %}
                 </div>
             </div>
@@ -103,7 +110,6 @@
     <div class="section-head row-between">
         <div>
             <h2 id="similar-heading" class="section-title">Similar products you may like</h2>
-            <p class="section-desc">Same-brand neighbours—swap in TF‑IDF + cosine similarity or embeddings for Task 3.</p>
         </div>
         <a href="{{ url_for('recommendations_page', review_id=product.review_id) }}" class="text-link">See all</a>
     </div>

@@ -12,12 +12,19 @@
         </header>
         <p class="prose review-detail-body">{{ review.review_text }}</p>
         <dl class="review-facts">
-            <div><dt>Star rating</dt><dd>{{ review.review_rating }}</dd></div>
+            <div><dt>Star rating</dt><dd>
+                <span class="review-stars" aria-label="{{ review.review_rating }} out of 5 stars">
+                    {% for i in range(1, 6) %}
+                    <span class="review-star{% if i <= review.review_rating|int %} is-filled{% endif %}">★</span>
+                    {% endfor %}
+                </span>
+                ({{ review.review_rating }}/5)
+            </dd></div>
             {% if review.created_by_user %}
             <div><dt>Model prediction</dt><dd>{{ review.predicted_sentiment }} / {{ review.predicted_rating }} stars</dd></div>
             <div><dt>Confidence</dt><dd>{{ review.prediction_confidence }}%</dd></div>
             {% else %}
-            <div><dt>Dataset label</dt><dd>Original review</dd></div>
+            <div><dt>Review type</dt><dd>Previous Review</dd></div>
             {% endif %}
         </dl>
     </article>

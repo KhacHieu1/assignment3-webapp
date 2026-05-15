@@ -278,6 +278,46 @@
     });
   }
 
+  /* Create review: star rating picker */
+  var starRatingRoot = qs("[data-star-rating]");
+  var ratingInput = qs("[data-rating-input]");
+  var ratingTouched = false;
+
+  function setStarRating(value, fromUser) {
+    if (!ratingInput || !starRatingRoot) return;
+    var n = parseInt(value, 10);
+    if (n < 1 || n > 5) return;
+    ratingInput.value = String(n);
+    if (fromUser) ratingTouched = true;
+    qsa("[data-star-value]", starRatingRoot).forEach(function (btn) {
+      var v = parseInt(btn.getAttribute("data-star-value"), 10);
+      btn.classList.toggle("is-active", v <= n);
+      btn.setAttribute("aria-pressed", v <= n ? "true" : "false");
+    });
+  }
+
+  if (starRatingRoot && ratingInput) {
+    qsa("[data-star-value]", starRatingRoot).forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setStarRating(btn.getAttribute("data-star-value"), true);
+      });
+      btn.addEventListener("mouseenter", function () {
+        var hover = parseInt(btn.getAttribute("data-star-value"), 10);
+        qsa("[data-star-value]", starRatingRoot).forEach(function (b) {
+          var v = parseInt(b.getAttribute("data-star-value"), 10);
+          b.classList.toggle("is-hover", v <= hover);
+        });
+      });
+    });
+    starRatingRoot.addEventListener("mouseleave", function () {
+      qsa("[data-star-value]", starRatingRoot).forEach(function (b) {
+        b.classList.remove("is-hover");
+      });
+      var current = parseInt(ratingInput.value, 10);
+      if (current >= 1) setStarRating(current, false);
+    });
+  }
+
   /* Create review: char count and live ML prediction */
   var reviewTitle = qs("#title");
   var reviewBody = qs("[data-review-body]");
@@ -332,6 +372,7 @@
             if (lbl) lbl.textContent = out.rating + "/5 - " + out.sentiment;
             if (conf) conf.textContent = out.confidence ? out.confidence + "%" : "Not available";
             if (expl) expl.textContent = "Prediction source: " + (out.source || "ML model") + ".";
+            if (!ratingTouched && out.rating) setStarRating(out.rating, false);
           })
           .catch(function () {
             if (load) load.hidden = true;
@@ -364,9 +405,15 @@
   if (reviewForm) {
     reviewForm.addEventListener("submit", function (e) {
       var body = qs("[data-review-body]", reviewForm);
+      var rating = qs("[data-rating-input]", reviewForm);
       if (body && body.value.trim().length < 20) {
         e.preventDefault();
         pushToast("Review description must be at least 20 characters.", "error");
+        return;
+      }
+      if (rating && (!rating.value || parseInt(rating.value, 10) < 1)) {
+        e.preventDefault();
+        pushToast("Please select a star rating from 1 to 5.", "error");
         return;
       }
       pushToast("Submitting review…", "info");
