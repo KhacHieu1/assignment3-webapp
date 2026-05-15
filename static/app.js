@@ -278,7 +278,8 @@
     });
   }
 
-  /* Create review: char count, mock ML, override panel */
+  /* Create review: char count and live ML prediction */
+  var reviewTitle = qs("#title");
   var reviewBody = qs("[data-review-body]");
   var charCount = qs("[data-char-count]");
   if (reviewBody && charCount) {
@@ -299,50 +300,54 @@
     var expl = qs("[data-prediction-explainer]", predBox);
     var t2 = null;
 
-    function mockPredict(text) {
-      var lower = text.toLowerCase();
-      var pos = ["love", "great", "best", "worth", "buy", "recommend", "amazing", "good", "perfect"];
-      var neg = ["waste", "bad", "not worth", "poor", "disappointed", "worst", "return"];
-      var score = 55;
-      pos.forEach(function (w) {
-        if (lower.indexOf(w) !== -1) score += 8;
+    function predictReview(title, text) {
+      return fetch("/api/review-prediction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ review_title: title, review_text: text }),
+      }).then(function (response) {
+        if (!response.ok) throw new Error("Prediction request failed");
+        return response.json();
       });
-      neg.forEach(function (w) {
-        if (lower.indexOf(w) !== -1) score -= 12;
-      });
-      score = Math.max(52, Math.min(96, score + (text.length % 9)));
-      var buyer = score >= 68;
-      return {
-        buyer: buyer,
-        confidence: score,
-        expl: buyer
-          ? "Language resembles purchase-ready reviewers in the training slice."
-          : "Sceptical or negative cues reduce predicted buyer likelihood.",
-      };
+    }
+
+    function runPrediction() {
+      clearTimeout(t2);
+      var txt = reviewBody ? reviewBody.value.trim() : "";
+      var title = reviewTitle ? reviewTitle.value.trim() : "";
+      if (txt.length < 12) {
+        if (ph) ph.hidden = false;
+        if (res) res.hidden = true;
+        if (load) load.hidden = true;
+        return;
+      }
+      if (load) load.hidden = false;
+      if (res) res.hidden = true;
+      if (ph) ph.hidden = true;
+      t2 = setTimeout(function () {
+        predictReview(title, txt)
+          .then(function (out) {
+            if (load) load.hidden = true;
+            if (res) res.hidden = false;
+            if (lbl) lbl.textContent = out.rating + "/5 - " + out.sentiment;
+            if (conf) conf.textContent = out.confidence ? out.confidence + "%" : "Not available";
+            if (expl) expl.textContent = "Prediction source: " + (out.source || "ML model") + ".";
+          })
+          .catch(function () {
+            if (load) load.hidden = true;
+            if (res) res.hidden = false;
+            if (lbl) lbl.textContent = "Prediction unavailable";
+            if (conf) conf.textContent = "Not available";
+            if (expl) expl.textContent = "Please submit the review to run the server-side prediction.";
+          });
+      }, 450);
     }
 
     if (reviewBody) {
-      reviewBody.addEventListener("input", function () {
-        clearTimeout(t2);
-        var txt = reviewBody.value.trim();
-        if (txt.length < 12) {
-          if (ph) ph.hidden = false;
-          if (res) res.hidden = true;
-          if (load) load.hidden = true;
-          return;
-        }
-        if (load) load.hidden = false;
-        if (res) res.hidden = true;
-        if (ph) ph.hidden = true;
-        t2 = setTimeout(function () {
-          var out = mockPredict(txt);
-          if (load) load.hidden = true;
-          if (res) res.hidden = false;
-          if (lbl) lbl.textContent = out.buyer ? "Likely buyer" : "Unlikely buyer";
-          if (conf) conf.textContent = out.confidence + "%";
-          if (expl) expl.textContent = out.expl;
-        }, 450);
-      });
+      reviewBody.addEventListener("input", runPrediction);
+    }
+    if (reviewTitle) {
+      reviewTitle.addEventListener("input", runPrediction);
     }
   }
 
