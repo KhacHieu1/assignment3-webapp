@@ -7,7 +7,7 @@
     <header class="page-intro">
         <p class="eyebrow">Create review · {{ product.brand_name }}</p>
         <h1 class="page-title">Share your experience</h1>
-        <p class="page-lead">For <strong>{{ product.product_title }}</strong>. Choose your star rating, write your review, and check the AI suggestion before you submit.</p>
+        <p class="page-lead">Share your experience with <strong>{{ product.product_title }}</strong>.</p>
     </header>
 
     <div class="create-grid">
@@ -37,19 +37,54 @@
             </div>
 
             <fieldset class="panel panel-inner">
-                <legend class="panel-title-sm">AI prediction</legend>
-                <p class="panel-muted">Suggested rating from your title and description—you choose the final stars above.</p>
-                <div class="prediction-box" data-prediction-box>
-                    <div class="prediction-placeholder" data-prediction-placeholder>
-                        <p>Start typing your description to get a prediction.</p>
-                    </div>
-                    <div class="prediction-result" hidden data-prediction-result>
-                        <p class="prediction-label">AI suggestion</p>
-                        <p class="prediction-value" data-prediction-label>—</p>
-                        <p class="prediction-confidence">Confidence: <strong data-prediction-confidence>—</strong></p>
-                        <p class="prediction-explainer" data-prediction-explainer>The model uses your review title and description.</p>
-                    </div>
-                    <div class="loading-inline" hidden data-prediction-loading aria-live="polite">Analysing text…</div>
+    <legend class="panel-title-sm">AI prediction</legend>
+    {% if review_result %}
+    <div class="prediction-box">
+        <p class="prediction-label">AI Prediction Result</p>
+        <p class="prediction-value">
+            {% if review_result.sentiment == 'Positive' %}
+                ✅ Likely Buyer
+            {% elif review_result.sentiment == 'Neutral' %}
+                😐 Neutral
+            {% else %}
+                ❌ Unlikely Buyer
+            {% endif %}
+        </p>
+        <p><strong>Predicted Rating:</strong> {{ review_result.rating }} / 5</p>
+        <p><strong>Sentiment:</strong> {{ review_result.sentiment }}</p>
+        {% if review_result.confidence %}
+        <p class="prediction-confidence">Confidence: <strong>{{ review_result.confidence }}%</strong></p>
+        {% endif %}
+        {% if model_accuracy %}
+        <p class="panel-muted">Model accuracy: {{ "%.1f"|format(model_accuracy * 100) }}%</p>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="prediction-box">
+        <p class="panel-muted">Submit your review to see the AI prediction.</p>
+    </div>
+    {% endif %}
+</fieldset>
+
+            <fieldset class="override-fieldset">
+                <legend class="panel-title-sm">Label choice</legend>
+                <label class="radio-row">
+                    <input type="radio" name="label_mode" value="ai" checked data-label-mode>
+                    <span>Use AI prediction</span>
+                </label>
+                <label class="radio-row">
+                    <input type="radio" name="label_mode" value="override" data-label-mode>
+                    <span>Override manually</span>
+                </label>
+                <div class="override-panel" hidden data-override-panel>
+                    <label class="radio-row">
+                        <input type="radio" name="manual_label" value="buyer">
+                        <span>I am / would be a buyer</span>
+                    </label>
+                    <label class="radio-row">
+                        <input type="radio" name="manual_label" value="not_buyer">
+                        <span>Not a buyer</span>
+                    </label>
                 </div>
             </fieldset>
 
@@ -60,22 +95,15 @@
         </form>
 
         <aside class="aside-hints panel">
-            <h2 class="panel-title-sm">Review checklist</h2>
-            <ul class="hint-list">
-                <li>Complete all required fields.</li>
-                <li>Select your star rating (1–5).</li>
-                <li>Write at least 20 characters.</li>
-                <li>Check the AI suggestion before submitting.</li>
-            </ul>
-            <div class="product-mini">
-                <img src="{{ url_for('static', filename=product.image) }}" alt="" width="120" height="150" loading="lazy">
-                <div>
-                    <p class="product-brand">{{ product.brand_name }}</p>
-                    <p class="product-name-sm">{{ product.product_title }}</p>
-                    <p class="price">₹{{ product.price }}</p>
-                </div>
-            </div>
-        </aside>
+    <div class="product-mini">
+        <img src="{{ url_for('static', filename=product.image) }}" alt="" width="120" height="150" loading="lazy">
+        <div>
+            <p class="product-brand">{{ product.brand_name }}</p>
+            <p class="product-name-sm">{{ product.product_title }}</p>
+            <p class="price">₹{{ product.price }}</p>
+        </div>
+    </div>
+</aside>
     </div>
 </div>
 {% endblock %}
