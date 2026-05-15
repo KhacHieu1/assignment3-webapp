@@ -13,8 +13,12 @@
         <p class="prose review-detail-body">{{ review.review_text }}</p>
         <dl class="review-facts">
             <div><dt>Star rating</dt><dd>{{ review.review_rating }}</dd></div>
-            <div><dt>Actual buyer flag</dt><dd>{% if review.is_buyer %}Buyer{% else %}Not buyer{% endif %}</dd></div>
-            <div><dt>AI predicted</dt><dd>{% if review.ai_predicted_buyer %}Likely buyer{% else %}Unlikely buyer{% endif %} ({{ review.confidence }}% confidence)</dd></div>
+            {% if review.created_by_user %}
+            <div><dt>Model prediction</dt><dd>{{ review.predicted_sentiment }} / {{ review.predicted_rating }} stars</dd></div>
+            <div><dt>Confidence</dt><dd>{{ review.prediction_confidence }}%</dd></div>
+            {% else %}
+            <div><dt>Dataset label</dt><dd>Original review</dd></div>
+            {% endif %}
         </dl>
     </article>
 </div>
