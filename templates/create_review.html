@@ -7,7 +7,7 @@
     <header class="page-intro">
         <p class="eyebrow">Create review · {{ product.brand_name }}</p>
         <h1 class="page-title">Share your experience</h1>
-        <p class="page-lead">For <strong>{{ product.product_title }}</strong>. Flow: type → preprocess → model predicts → accept or override → submit.</p>
+        <p class="page-lead">Share your experience with <strong>{{ product.product_title }}</strong>.</p>
     </header>
 
     <div class="create-grid">
@@ -38,21 +38,34 @@
             </div>
 
             <fieldset class="panel panel-inner">
-                <legend class="panel-title-sm">AI prediction</legend>
-                <p class="panel-muted">Live demo UI—wire your sklearn / vectoriser endpoint here.</p>
-                <div class="prediction-box" data-prediction-box>
-                    <div class="prediction-placeholder" data-prediction-placeholder>
-                        <p>Start typing your description to simulate a prediction.</p>
-                    </div>
-                    <div class="prediction-result" hidden data-prediction-result>
-                        <p class="prediction-label">AI prediction</p>
-                        <p class="prediction-value" data-prediction-label>—</p>
-                        <p class="prediction-confidence">Confidence: <strong data-prediction-confidence>—</strong></p>
-                        <p class="prediction-explainer" data-prediction-explainer>Positive language and purchase cues increase buyer likelihood in the Milestone model.</p>
-                    </div>
-                    <div class="loading-inline" hidden data-prediction-loading aria-live="polite">Analysing text…</div>
-                </div>
-            </fieldset>
+    <legend class="panel-title-sm">AI prediction</legend>
+    {% if review_result %}
+    <div class="prediction-box">
+        <p class="prediction-label">AI Prediction Result</p>
+        <p class="prediction-value">
+            {% if review_result.sentiment == 'Positive' %}
+                ✅ Likely Buyer
+            {% elif review_result.sentiment == 'Neutral' %}
+                😐 Neutral
+            {% else %}
+                ❌ Unlikely Buyer
+            {% endif %}
+        </p>
+        <p><strong>Predicted Rating:</strong> {{ review_result.rating }} / 5</p>
+        <p><strong>Sentiment:</strong> {{ review_result.sentiment }}</p>
+        {% if review_result.confidence %}
+        <p class="prediction-confidence">Confidence: <strong>{{ review_result.confidence }}%</strong></p>
+        {% endif %}
+        {% if model_accuracy %}
+        <p class="panel-muted">Model accuracy: {{ "%.1f"|format(model_accuracy * 100) }}%</p>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="prediction-box">
+        <p class="panel-muted">Submit your review to see the AI prediction.</p>
+    </div>
+    {% endif %}
+</fieldset>
 
             <fieldset class="override-fieldset">
                 <legend class="panel-title-sm">Label choice</legend>
@@ -83,22 +96,15 @@
         </form>
 
         <aside class="aside-hints panel">
-            <h2 class="panel-title-sm">HD checklist</h2>
-            <ul class="hint-list">
-                <li>Validation: empty fields, rating range, min length.</li>
-                <li>Show confidence + short explanation.</li>
-                <li>Override path mirrors rubric requirement.</li>
-                <li>After submit: toast + redirect to product (demo).</li>
-            </ul>
-            <div class="product-mini">
-                <img src="{{ url_for('static', filename=product.image) }}" alt="" width="120" height="150" loading="lazy">
-                <div>
-                    <p class="product-brand">{{ product.brand_name }}</p>
-                    <p class="product-name-sm">{{ product.product_title }}</p>
-                    <p class="price">₹{{ product.price }}</p>
-                </div>
-            </div>
-        </aside>
+    <div class="product-mini">
+        <img src="{{ url_for('static', filename=product.image) }}" alt="" width="120" height="150" loading="lazy">
+        <div>
+            <p class="product-brand">{{ product.brand_name }}</p>
+            <p class="product-name-sm">{{ product.product_title }}</p>
+            <p class="price">₹{{ product.price }}</p>
+        </div>
+    </div>
+</aside>
     </div>
 </div>
 {% endblock %}
