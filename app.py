@@ -140,6 +140,34 @@ def unique_products(sub_df, n=12):
     return [row_to_product_card(u.iloc[i]) for i in range(len(u))]
 
 
+def dataset_review_record(row):
+    review = row.to_dict()
+    review["image"] = image_for_review_id(review["review_id"])
+    ib = row.get("is_a_buyer")
+    review["is_buyer"] = ib is True or str(ib).lower() == "true"
+    review["created_by_user"] = False
+    return review
+
+
+def reviews_for_product(title):
+    user_reviews = [
+        review for review in new_reviews
+        if review.get("product_title") == title
+    ]
+    dataset_reviews = [
+        dataset_review_record(row)
+        for _, row in df[df["product_title"] == title].iterrows()
+    ]
+    return user_reviews + dataset_reviews
+
+
+def find_created_review(review_id):
+    for review in new_reviews:
+        if int(review.get("review_id", 0)) == int(review_id):
+            return review
+    return None
+
+
 def search_mask(query):
     query_lower = query.strip().lower()
     if not query_lower:
@@ -251,6 +279,24 @@ def suggestions():
     return jsonify(out[:12])
 
 
+@app.route("/api/review-prediction", methods=["POST"])
+def review_prediction_api():
+    data = request.get_json(silent=True) or {}
+    review_title = str(data.get("review_title", "")).strip()
+    review_text = str(data.get("review_text", "")).strip()
+    if not review_text:
+        return jsonify({"error": "Review text is required."}), 400
+
+    prediction = predict_review_rating(review_text)
+    return jsonify({
+        "rating": prediction["rating"],
+        "sentiment": prediction["sentiment"],
+        "confidence": prediction["confidence"],
+        "source": prediction["source"],
+        "model_accuracy": review_model_accuracy,
+    })
+
+
 @app.route("/product/<int:review_id>")
 def product_detail(review_id):
     product_rows = df[df["review_id"] == review_id]
@@ -279,9 +325,13 @@ def product_detail(review_id):
 
     buyer_n = sum(1 for r in reviews if r["is_buyer"])
     buyer_ratio = round(100 * buyer_n / len(reviews), 1) if reviews else 0
+    review_ratings = pd.to_numeric(
+        pd.Series([r.get("review_rating") for r in reviews]),
+        errors="coerce",
+    ).dropna()
     avg_rev_rating = (
-        round(pd.to_numeric(all_reviews["review_rating"], errors="coerce").mean(), 2)
-        if "review_rating" in all_reviews.columns
+        round(review_ratings.mean(), 2)
+        if len(review_ratings)
         else None
     )
 
@@ -386,6 +436,22 @@ def create_review(review_id):
 
 @app.route("/review/<int:review_id>")
 def review_detail(review_id):
+    created_review = find_created_review(review_id)
+    if created_review:
+        review = dict(created_review)
+        product_link = url_for("product_detail", review_id=int(review["product_review_id"]))
+        return render_template(
+            "review_detail.html",
+            review=review,
+            product_title=review.get("product_title", ""),
+            product_url=product_link,
+            breadcrumb=[
+                ("Home", url_for("home")),
+                ("Product", product_link),
+                ("Review #%s" % review_id, None),
+            ],
+        )
+
     row = df[df["review_id"] == review_id]
     if row.empty:
         abort(404)
@@ -441,9 +507,9 @@ def admin_dashboard():
         brand_labels=list(brand_top.index),
         brand_values=[int(x) for x in brand_top.values],
         model_metrics={
-            "accuracy": 0.84,
-            "precision": 0.81,
-            "recall": 0.79,
+            "accuracy": round(review_model_accuracy or 0, 3),
+            "features": "TF-IDF",
+            "classifier": "Logistic Regression",
         },
     )
 

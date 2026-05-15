@@ -67,7 +67,7 @@
     <div class="section-head row-between">
         <div>
             <h2 id="reviews-heading" class="section-title">Reviews</h2>
-            <p class="section-desc">Each card shows reviewer content—ready for predicted vs actual buyer labels.</p>
+            <p class="section-desc">Created reviews show the model-predicted rating and sentiment.</p>
         </div>
         <a href="{{ url_for('create_review', review_id=product.review_id) }}" class="btn btn-primary">Add yours</a>
     </div>
@@ -80,15 +80,17 @@
                     <p class="review-meta"><span class="reviewer">Reviewer #{{ review.review_id }}</span> · <span>Rating {{ review.review_rating }}</span></p>
                 </div>
                 <div class="review-badges">
-                    {% if review.is_buyer %}
-                    <span class="pill pill-buyer">Verified-style buyer</span>
+                    {% if review.created_by_user %}
+                    <span class="pill pill-ai">Model: {{ review.predicted_sentiment }} / {{ review.predicted_rating }} stars</span>
                     {% else %}
-                    <span class="pill pill-muted">Not buyer</span>
+                    <span class="pill pill-muted">Dataset review</span>
                     {% endif %}
-                    <span class="pill pill-ai">AI: {% if review.is_buyer %}Likely buyer{% else %}Unlikely buyer{% endif %}</span>
                 </div>
             </div>
             <p class="review-body">{{ review.review_text }}</p>
+            {% if review.created_by_user %}
+            <p class="review-meta">Model confidence: {{ review.prediction_confidence }}%</p>
+            {% endif %}
             <div class="review-card-actions">
                 <a href="{{ url_for('review_detail', review_id=review.review_id) }}" class="text-link">Open review URL</a>
             </div>
