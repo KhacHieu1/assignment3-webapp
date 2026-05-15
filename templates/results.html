@@ -17,9 +17,9 @@
         <!-- Search bar stays on results page so user can search again -->
         <div class="search-container">
             <form action="/search" method="GET">
-                <input 
-                    type="text" 
-                    name="query" 
+                <input
+                    type="text"
+                    name="query"
                     value="{{ query }}"
                     placeholder="Search by brand or product name..."
                 >
@@ -37,13 +37,13 @@
         <div class="results-grid">
             {% for product in results %}
             <div class="product-card">
-                <img src="{{ url_for('static', filename=product.image) }}" 
+                <img src="{{ url_for('static', filename=product.image) }}"
                      alt="{{ product.product_title }}"
                      class="product-img">
                 <h3>{{ product.product_title }}</h3>
                 <p class="brand">{{ product.brand_name }}</p>
-                <p class="price">₹{{ product.price }}</p>
-                <p class="rating">⭐ {{ product.avg_product_rating }}</p>
+                <p class="price">Rs {{ product.price }}</p>
+                <p class="rating">Rating: {{ product.avg_product_rating }}</p>
                 <a href="/product/{{ product.review_id }}" class="view-btn">View Details</a>
             </div>
             {% endfor %}

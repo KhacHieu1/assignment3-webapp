@@ -16,18 +16,75 @@
     <main>
         <!-- Back to search button -->
         <div class="back-btn-container">
-            <a href="javascript:history.back()" class="back-btn">← Back to Results</a>
+            <a href="javascript:history.back()" class="back-btn">&larr; Back to Results</a>
         </div>
 
         <!-- Product details section -->
         <div class="product-detail">
             <h2>{{ product.product_title }}</h2>
-            <img src="{{ url_for('static', filename=product.image) }}" 
+            <img src="{{ url_for('static', filename=product.image) }}"
                  alt="{{ product.product_title }}"
                  class="product-detail-img">
             <p class="brand">Brand: <strong>{{ product.brand_name }}</strong></p>
-            <p class="price">Price: <strong>₹{{ product.price }}</strong></p>
-            <p class="rating">Average Rating: ⭐ <strong>{{ product.avg_product_rating }}</strong></p>
+            <p class="price">Price: <strong>Rs {{ product.price }}</strong></p>
+            <p class="rating">Average Rating: <strong>{{ product.avg_product_rating }}</strong></p>
+        </div>
+
+        <!-- Review form lets user write a new product review -->
+        <div class="review-form-section">
+            <h3>Write a Review</h3>
+
+            <!-- Form sends review data to the product route using POST -->
+            <form method="POST" action="/product/{{ product.review_id }}" class="review-form">
+
+                <!-- Review title entered by the user -->
+                <label for="review_title">Review Title</label>
+                <input
+                    type="text"
+                    id="review_title"
+                    name="review_title"
+                    placeholder="Short title for your review"
+                >
+
+                <!-- Review text used by the ML model for prediction -->
+                <label for="review_text">Review Text</label>
+                <textarea
+                    id="review_text"
+                    name="review_text"
+                    rows="5"
+                    placeholder="Share your experience with this product..."
+                    required
+                ></textarea>
+
+                <!-- Checkbox stores whether the review is from a verified buyer -->
+                <label class="buyer-check">
+                    <input type="checkbox" name="is_a_buyer" checked>
+                    Verified Buyer
+                </label>
+
+                <!-- Submit button creates review and asks model to predict rating -->
+                <button type="submit">Submit Review and Predict Rating</button>
+            </form>
+
+            <!-- Prediction result appears after user submits a review -->
+            {% if review_result %}
+            <div class="prediction-box">
+                <p>
+                    Predicted rating:
+                    <!-- Show predicted rating and sentiment from Python -->
+                    <strong>{{ review_result.rating }}/5</strong>
+                    ({{ review_result.sentiment }})
+                </p>
+                <!-- Show model confidence when it is available -->
+                {% if review_result.confidence %}
+                <p>Model confidence: {{ review_result.confidence }}%</p>
+                {% endif %}
+                <!-- Show model accuracy when it is available -->
+                {% if model_accuracy %}
+                <p>Model test accuracy: {{ "%.2f"|format(model_accuracy * 100) }}%</p>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <!-- Reviews section -->
@@ -35,17 +92,31 @@
             <h3>Customer Reviews ({{ reviews|length }})</h3>
 
             {% for review in reviews %}
-            <div class="review-card">
+            <!-- Review card displays both existing reviews and newly submitted reviews -->
+            <div class="review-card {% if review.created_by_user %}new-review{% endif %}">
                 <div class="review-header">
                     <strong>{{ review.review_title }}</strong>
-                    <span class="review-rating">⭐ {{ review.review_rating }}</span>
+                    <span class="review-rating">{{ review.review_rating }}/5</span>
                 </div>
                 <p class="review-text">{{ review.review_text }}</p>
+
+                <!-- Show ML prediction only for newly submitted reviews -->
+                {% if review.predicted_sentiment %}
+                <p class="review-prediction">
+                    ML Prediction: {{ review.predicted_sentiment }}
+                    <!-- Show prediction confidence for new reviews when available -->
+                    {% if review.prediction_confidence %}
+                        ({{ review.prediction_confidence }}% confidence)
+                    {% endif %}
+                </p>
+                {% endif %}
+
+                <!-- Show whether the reviewer is a verified buyer -->
                 <p class="review-buyer">
-                    {% if review.is_a_buyer == True or review.is_a_buyer == 'True' %}
-                        ✅ Verified Buyer
+                    {% if review.is_a_buyer == True or review.is_a_buyer == 'True' or review.is_a_buyer == 'TRUE' %}
+                        Verified Buyer
                     {% else %}
-                        ❌ Not a Verified Buyer
+                        Not a Verified Buyer
                     {% endif %}
                 </p>
             </div>
