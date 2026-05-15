@@ -17,6 +17,16 @@
                 <input class="input" id="title" name="title" type="text" required minlength="3" maxlength="120" placeholder="Headline for your review">
             </div>
             <div class="form-row">
+                <span class="label" id="rating-label">Your star rating <span class="req">*</span></span>
+                <div class="star-rating-input" data-star-rating role="group" aria-labelledby="rating-label">
+                    <input type="hidden" name="rating" id="rating" value="" data-rating-input required>
+                    {% for i in range(1, 6) %}
+                    <button type="button" class="star-btn" data-star-value="{{ i }}" aria-label="{{ i }} out of 5 stars">★</button>
+                    {% endfor %}
+                </div>
+                <p class="field-hint" data-rating-hint>Select 1–5 stars. The AI may suggest a rating while you type—you can change it anytime.</p>
+            </div>
+            <div class="form-row">
                 <label for="body">Review description <span class="req">*</span></label>
                 <textarea class="input textarea" id="body" name="body" rows="6" required minlength="20" maxlength="2000" placeholder="What worked, texture, finish, value…" data-review-body></textarea>
                 <p class="field-hint"><span data-char-count>0</span> / 2000 · minimum 20 characters</p>

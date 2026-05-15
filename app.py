@@ -335,8 +335,7 @@ def product_detail(review_id):
         else None
     )
 
-    sim = df[(df["brand_name"] == brand) & (df["product_title"] != title)]
-    similar = unique_products(sim, 6)
+    similar = [row_to_product_card(r) for r in get_similar_products(title, 6)]
 
     product_dict = row_to_product_card(product_info)
     product_dict["category"] = str(brand) if pd.notna(brand) else "Beauty"
@@ -369,8 +368,7 @@ def recommendations_page(review_id):
     product_info = product_rows.iloc[0]
     title = product_info["product_title"]
     brand = product_info["brand_name"]
-    sim = df[(df["brand_name"] == brand) & (df["product_title"] != title)]
-    similar = unique_products(sim, 12)
+    similar = [row_to_product_card(r) for r in get_similar_products(title, 12)]
     product_dict = row_to_product_card(product_info)
     return render_template(
         "recommendations.html",

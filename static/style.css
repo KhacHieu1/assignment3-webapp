@@ -1216,11 +1216,50 @@ a:hover {
 .review-form .form-row {
   margin-bottom: 18px;
 }
-.form-row label {
+.form-row label,
+.form-row .label {
   display: block;
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 8px;
+}
+.star-rating-input {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.star-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 2rem;
+  line-height: 1;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+.star-btn:hover,
+.star-btn.is-hover {
+  color: #f4b740;
+  transform: scale(1.06);
+}
+.star-btn.is-active {
+  color: #e8a317;
+}
+.star-btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.review-stars {
+  display: inline-flex;
+  gap: 2px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #d1d5db;
+}
+.review-star.is-filled {
+  color: #e8a317;
 }
 .req {
   color: var(--danger);
