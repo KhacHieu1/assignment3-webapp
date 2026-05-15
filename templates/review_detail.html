@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Review #{{ review.review_id }}{% endblock %}
+{% block body_class %}page-review-detail{% endblock %}
+
+{% block content %}
+<div class="narrow-page">
+    <article class="review-detail-card panel">
+        <header class="review-detail-head">
+            <p class="eyebrow">Review #{{ review.review_id }}</p>
+            <h1 class="page-title">{{ review.review_title }}</h1>
+            <p class="review-meta">Linked product: <a href="{{ product_url }}">{{ product_title }}</a></p>
+        </header>
+        <p class="prose review-detail-body">{{ review.review_text }}</p>
+        <dl class="review-facts">
+            <div><dt>Star rating</dt><dd>{{ review.review_rating }}</dd></div>
+            <div><dt>Actual buyer flag</dt><dd>{% if review.is_buyer %}Buyer{% else %}Not buyer{% endif %}</dd></div>
+            <div><dt>AI predicted</dt><dd>{% if review.ai_predicted_buyer %}Likely buyer{% else %}Unlikely buyer{% endif %} ({{ review.confidence }}% confidence)</dd></div>
+        </dl>
+    </article>
+</div>
+{% endblock %}

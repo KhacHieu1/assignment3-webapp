@@ -1,58 +1,87 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Results - Beauty & Cosmetics Store</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Search · {{ query }}{% endblock %}
+{% block body_class %}page-results{% endblock %}
 
-    <header>
-        <h1>Beauty & Cosmetics Store</h1>
-        <p>Discover your favourite beauty products</p>
-    </header>
-
-    <main>
-        <!-- Search bar stays on results page so user can search again -->
-        <div class="search-container">
-            <form action="/search" method="GET">
-                <input 
-                    type="text" 
-                    name="query" 
-                    value="{{ query }}"
-                    placeholder="Search by brand or product name..."
-                >
-                <button type="submit">Search</button>
-            </form>
+{% block content %}
+<div class="layout-results">
+    <aside class="filters-sidebar" aria-label="Filters">
+        <h2 class="filters-title">Refine</h2>
+        <div class="filter-group">
+            <h3 class="filter-label">Brand</h3>
+            <div class="filter-options" data-filter-brand></div>
         </div>
-
-        <!-- Show how many products matched -->
-        <div class="results-info">
-            <p>Found <strong>{{ count }}</strong> products matching "<strong>{{ query }}</strong>"</p>
+        <div class="filter-group">
+            <h3 class="filter-label">Min rating</h3>
+            <select class="input" data-filter-rating aria-label="Minimum average rating">
+                <option value="0">Any</option>
+                <option value="3">3+</option>
+                <option value="4">4+</option>
+                <option value="4.5">4.5+</option>
+            </select>
         </div>
+        <div class="filter-group">
+            <h3 class="filter-label">Sort</h3>
+            <select class="input" data-sort-results aria-label="Sort results">
+                <option value="relevance">Relevance</option>
+                <option value="rating-desc">Highest rating</option>
+                <option value="price-asc">Lowest price</option>
+                <option value="reviews">Most reviews (proxy)</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-ghost btn-block" data-filter-reset>Reset filters</button>
+    </aside>
 
-        <!-- Display each matched product as a card -->
-        {% if results %}
-        <div class="results-grid">
-            {% for product in results %}
-            <div class="product-card">
-                <img src="{{ url_for('static', filename=product.image) }}" 
-                     alt="{{ product.product_title }}"
-                     class="product-img">
-                <h3>{{ product.product_title }}</h3>
-                <p class="brand">{{ product.brand_name }}</p>
-                <p class="price">₹{{ product.price }}</p>
-                <p class="rating">⭐ {{ product.avg_product_rating }}</p>
-                <a href="/product/{{ product.review_id }}" class="view-btn">View Details</a>
-            </div>
-            {% endfor %}
+    <div class="results-main">
+        <header class="results-header">
+            <h1 class="results-title">
+                {% if count %}
+                <strong>{{ count }}</strong> products found for “<span class="query-highlight">{{ query }}</span>”
+                {% else %}
+                No products found for “<span class="query-highlight">{{ query }}</span>”
+                {% endif %}
+            </h1>
+            <p class="results-sub">Relevance scores illustrate your ranking signal—ready for TF‑IDF + cosine similarity.</p>
+        </header>
+
+        <div class="loading-bar" hidden data-loading-bar aria-hidden="true"><span></span></div>
+
+        {% if not results %}
+        <div class="empty-state empty-state-large">
+            <div class="empty-icon" aria-hidden="true">⌕</div>
+            <h2 class="empty-title">No products found</h2>
+            <p class="empty-text">Try another keyword, check spelling, or browse a popular brand from the header.</p>
+            <a href="{{ url_for('home') }}" class="btn btn-primary">Back home</a>
         </div>
         {% else %}
-        <p class="no-results">No products found for "{{ query }}". Try a different keyword.</p>
+        <script type="application/json" id="search-results-json">{{ results|tojson }}</script>
+        <div class="product-grid product-grid-results" data-results-grid>
+            {% for product in results %}
+            <article class="product-card product-card-result" data-card
+                     data-brand="{{ product.brand_name|e }}"
+                     data-rating="{{ product.avg_product_rating }}"
+                     data-price="{{ product.price }}"
+                     data-relevance="{{ product.relevance }}"
+                     data-title="{{ product.product_title|e }}">
+                <a href="{{ url_for('product_detail', review_id=product.review_id) }}" class="product-card-link">
+                    <div class="product-card-media">
+                        <img src="{{ url_for('static', filename=product.image) }}" alt="" loading="lazy" width="400" height="500">
+                        <span class="relevance-pill" title="Relevance score">Match {{ product.relevance }}%</span>
+                    </div>
+                    <div class="product-card-body">
+                        <p class="product-brand">{{ product.brand_name }}</p>
+                        <h3 class="product-name">{{ product.product_title }}</h3>
+                        <p class="product-snippet">{{ product.short_text }}</p>
+                        <p class="product-meta">
+                            <span class="price">₹{{ product.price }}</span>
+                            <span class="rating">{{ "%.1f"|format(product.avg_product_rating|float) }} ★</span>
+                        </p>
+                    </div>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+        <p class="results-count-footer" hidden data-no-match-msg>No products match your filters. <button type="button" class="text-btn" data-filter-reset>Reset</button></p>
         {% endif %}
-
-    </main>
-
-</body>
-</html>
+    </div>
+</div>
+{% endblock %}

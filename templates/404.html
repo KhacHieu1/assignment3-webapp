@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Page not found{% endblock %}
+{% block body_class %}page-error{% endblock %}
+
+{% block content %}
+<div class="error-hero">
+    <p class="error-code">404</p>
+    <h1 class="error-title">We couldn’t find that page</h1>
+    <p class="error-text">The product or review may have been removed, or the link is mistyped. Try search or head home.</p>
+    <div class="error-actions">
+        <a href="{{ url_for('home') }}" class="btn btn-primary">Back home</a>
+        <a href="{{ url_for('search', query='Olay') }}" class="btn btn-ghost">Browse Olay</a>
+    </div>
+</div>
+{% endblock %}
