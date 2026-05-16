@@ -11,7 +11,7 @@
     </header>
 
     <div class="create-grid">
-        <form class="review-form panel" id="create-review-form" method="post" action="{{ url_for('create_review', review_id=product.review_id) }}" data-review-form novalidate>
+        <form class="review-form panel" id="create-review-form" method="post" action="{{ url_for('create_review', review_id=product.review_id) }}" data-review-form data-product-review-id="{{ product.review_id }}" novalidate>
             <div class="form-row">
                 <label for="title">Review title <span class="req">*</span></label>
                 <input class="input" id="title" name="title" type="text" required minlength="3" maxlength="120" placeholder="Headline for your review">
@@ -24,7 +24,7 @@
                     <button type="button" class="star-btn" data-star-value="{{ i }}" aria-label="{{ i }} out of 5 stars">★</button>
                     {% endfor %}
                 </div>
-                <p class="field-hint" data-rating-hint>Select 1–5 stars. The AI may suggest a rating while you type—you can change it anytime.</p>
+                <p class="field-hint" data-rating-hint>Select 1–5 stars. The models use this with your review text to suggest a buyer label.</p>
             </div>
             <div class="form-row">
                 <label for="body">Review description <span class="req">*</span></label>
@@ -37,34 +37,21 @@
             </div>
 
             <fieldset class="panel panel-inner">
-    <legend class="panel-title-sm">AI prediction</legend>
-    {% if review_result %}
-    <div class="prediction-box">
-        <p class="prediction-label">AI Prediction Result</p>
-        <p class="prediction-value">
-            {% if review_result.sentiment == 'Positive' %}
-                ✅ Likely Buyer
-            {% elif review_result.sentiment == 'Neutral' %}
-                😐 Neutral
-            {% else %}
-                ❌ Unlikely Buyer
-            {% endif %}
-        </p>
-        <p><strong>Predicted Rating:</strong> {{ review_result.rating }} / 5</p>
-        <p><strong>Sentiment:</strong> {{ review_result.sentiment }}</p>
-        {% if review_result.confidence %}
-        <p class="prediction-confidence">Confidence: <strong>{{ review_result.confidence }}%</strong></p>
-        {% endif %}
-        {% if model_accuracy %}
-        <p class="panel-muted">Model accuracy: {{ "%.1f"|format(model_accuracy * 100) }}%</p>
-        {% endif %}
-    </div>
-    {% else %}
-    <div class="prediction-box">
-        <p class="panel-muted">Submit your review to see the AI prediction.</p>
-    </div>
-    {% endif %}
-</fieldset>
+                <legend class="panel-title-sm">AI buyer-label prediction</legend>
+                <div class="prediction-box" data-prediction-box>
+                    <div class="prediction-placeholder" data-prediction-placeholder>
+                        <p>Type at least 12 characters to preview the three-model buyer label.</p>
+                    </div>
+                    <p class="loading-inline" data-prediction-loading hidden>Predicting label...</p>
+                    <div data-prediction-result hidden>
+                        <p class="prediction-label">Suggested label</p>
+                        <p class="prediction-value" data-prediction-label>Waiting for prediction</p>
+                        <p class="prediction-confidence">Confidence: <strong data-prediction-confidence>Not available</strong></p>
+                        <p class="prediction-explainer" data-prediction-explainer></p>
+                        <ul class="model-vote-list" data-model-votes></ul>
+                    </div>
+                </div>
+            </fieldset>
 
             <fieldset class="override-fieldset">
                 <legend class="panel-title-sm">Label choice</legend>
@@ -79,11 +66,11 @@
                 <div class="override-panel" hidden data-override-panel>
                     <label class="radio-row">
                         <input type="radio" name="manual_label" value="buyer">
-                        <span>I am / would be a buyer</span>
+                        <span>Would buy</span>
                     </label>
                     <label class="radio-row">
                         <input type="radio" name="manual_label" value="not_buyer">
-                        <span>Not a buyer</span>
+                        <span>Would not buy</span>
                     </label>
                 </div>
             </fieldset>

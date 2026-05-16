@@ -1,16 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from recommendations import init_recommendations, get_similar_products
+from review_models import binary_label, predict_review_label, train_review_label_ensemble
 import pandas as pd
-import re
-
-# Import ML tools for review prediction — wrapped in try/except for safety
-try:
-    from sklearn.feature_extraction.text import CountVectorizer
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import train_test_split
-    SKLEARN_READY = True
-except ImportError:
-    SKLEARN_READY = False
+import json
+from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = "velora-dev-secret-change-in-production"
@@ -25,99 +18,100 @@ df = df.merge(
 )
 
 NUM_IMAGES = 6
+CREATED_REVIEWS_PATH = Path("created_reviews.json")
+USER_REVIEW_ID_START = 900000000
 
-# Store new reviews submitted during this app session
+# Store reviews created by users and persist them for review URLs.
 new_reviews = []
 
 
-def clean_review_text(review_text):
-    # Clean new review text before sending it to the ML model
-    review_text = str(review_text).lower()
-    review_text = re.sub(r'[^a-z0-9\s]', ' ', review_text)
-    review_text = re.sub(r'\s+', ' ', review_text).strip()
-    return review_text
+def load_created_reviews():
+    if not CREATED_REVIEWS_PATH.exists():
+        return []
+    try:
+        reviews = json.loads(CREATED_REVIEWS_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    return reviews if isinstance(reviews, list) else []
 
 
-def rating_to_sentiment(rating):
-    # Convert predicted star rating into a readable label for the web page
-    if rating >= 4:
-        return 'Positive'
-    elif rating == 3:
-        return 'Neutral'
-    else:
-        return 'Negative'
-
-
-def train_review_model():
-    # Build a logistic regression model to predict review rating from text
-    if not SKLEARN_READY:
-        print('scikit-learn not available. Using fallback prediction.')
-        return None, None, None
-
-    # Use processed review text as input and review rating as target
-    model_df = df[['processed_review', 'review_rating']].copy()
-    model_df['processed_review'] = model_df['processed_review'].fillna('').astype(str)
-    model_df['review_rating'] = pd.to_numeric(model_df['review_rating'], errors='coerce')
-    model_df = model_df.dropna()
-    model_df = model_df[model_df['processed_review'].str.strip() != '']
-
-    joined_reviews = model_df['processed_review'].tolist()
-    ratings = model_df['review_rating'].astype(int).tolist()
-
-    seed = 15
-    vectorizer = CountVectorizer(analyzer='word', max_features=5000)
-    count_features = vectorizer.fit_transform(joined_reviews)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        count_features, ratings, test_size=0.2, random_state=seed
+def save_created_reviews(reviews):
+    CREATED_REVIEWS_PATH.write_text(
+        json.dumps(reviews, indent=2, ensure_ascii=False),
+        encoding="utf-8",
     )
 
-    model = LogisticRegression(random_state=seed, max_iter=1000)
-    model.fit(X_train, y_train)
-    accuracy = model.score(X_test, y_test)
-    print(f'Review rating model accuracy: {accuracy}')
 
-    # Retrain on full dataset for deployment
-    model.fit(count_features, ratings)
-    return vectorizer, model, accuracy
-
-
-def fallback_predict_rating(review_text):
-    # Simple keyword-based fallback if ML model is unavailable
-    positive_words = ['good', 'great', 'best', 'love', 'amazing', 'perfect', 'nice', 'excellent']
-    negative_words = ['bad', 'worst', 'hate', 'poor', 'dry', 'damage', 'useless', 'disappoint']
-    text = review_text.lower()
-    score = 3
-    for word in positive_words:
-        if word in text:
-            score += 1
-    for word in negative_words:
-        if word in text:
-            score -= 1
-    return max(1, min(5, score))
+def next_created_review_id():
+    max_existing = USER_REVIEW_ID_START
+    for review in new_reviews:
+        try:
+            max_existing = max(max_existing, int(review.get("review_id", 0)))
+        except (TypeError, ValueError):
+            continue
+    return max_existing + 1
 
 
-def predict_review_rating(review_text):
-    # Predict rating, sentiment and confidence for a new review
-    processed_review = clean_review_text(review_text)
-    if review_model is None or review_vectorizer is None or processed_review == '':
-        predicted_rating = fallback_predict_rating(review_text)
-        confidence = None
-    else:
-        review_features = review_vectorizer.transform([processed_review])
-        predicted_rating = int(review_model.predict(review_features)[0])
-        proba = review_model.predict_proba(review_features)[0]
-        confidence = round(float(max(proba)) * 100, 1)
+def product_context(product_info, review_rating=None):
     return {
-        'rating': predicted_rating,
-        'sentiment': rating_to_sentiment(predicted_rating),
-        'confidence': confidence,
-        'processed_review': processed_review
+        "review_rating": review_rating,
+        "avg_product_rating": product_info.get("avg_product_rating", 0),
+        "price": product_info.get("price", 0),
     }
 
 
-# Train the model once when the app starts
-review_vectorizer, review_model, review_model_accuracy = train_review_model()
+def predict_for_review(review_title, review_text, product_info, review_rating=None):
+    return predict_review_label(
+        review_label_ensemble,
+        review_text,
+        review_title=review_title,
+        context=product_context(product_info, review_rating),
+    )
+
+
+def refresh_legacy_review_labels():
+    updated = False
+    for review in new_reviews:
+        if not review.get("created_by_user"):
+            continue
+
+        prediction = predict_review_label(
+            review_label_ensemble,
+            review.get("review_text", ""),
+            review_title=review.get("review_title", ""),
+            context={
+                "review_rating": review.get("review_rating"),
+                "avg_product_rating": review.get("avg_product_rating"),
+                "price": review.get("price"),
+            },
+        )
+        ai_is_buyer = bool(prediction["would_buy"])
+        final_is_buyer = (
+            review.get("final_label") == "Would buy"
+            if review.get("label_source") == "User override"
+            else ai_is_buyer
+        )
+        review["is_a_buyer"] = final_is_buyer
+        review["is_buyer"] = final_is_buyer
+        review["ai_predicted_buyer"] = ai_is_buyer
+        review["ai_predicted_label"] = prediction["label"]
+        review["final_label"] = binary_label(final_is_buyer)
+        review["label_source"] = review.get("label_source") or "AI ensemble"
+        review["prediction_probability"] = prediction["probability"]
+        review["prediction_confidence"] = prediction["confidence"]
+        review["prediction_source"] = prediction["source"]
+        review["model_votes"] = prediction["votes"]
+        updated = True
+
+    if updated:
+        save_created_reviews(new_reviews)
+
+
+# Load saved user reviews and train the buyer-label ensemble once at startup.
+new_reviews = load_created_reviews()
+review_label_ensemble = train_review_label_ensemble(df)
+review_model_accuracy = review_label_ensemble.get("fused_accuracy")
+refresh_legacy_review_labels()
 init_recommendations(df)
 
 @app.context_processor
@@ -285,15 +279,29 @@ def review_prediction_api():
     data = request.get_json(silent=True) or {}
     review_title = str(data.get("review_title", "")).strip()
     review_text = str(data.get("review_text", "")).strip()
+    review_rating = data.get("review_rating") or None
+    product_review_id = data.get("product_review_id")
     if not review_text:
         return jsonify({"error": "Review text is required."}), 400
 
-    prediction = predict_review_rating(review_text)
+    product_info = {}
+    if product_review_id:
+        try:
+            product_rows = df[df["review_id"] == int(product_review_id)]
+            if not product_rows.empty:
+                product_info = product_rows.iloc[0]
+        except (TypeError, ValueError):
+            product_info = {}
+
+    prediction = predict_for_review(review_title, review_text, product_info, review_rating)
     return jsonify({
-        "rating": prediction["rating"],
-        "sentiment": prediction["sentiment"],
+        "would_buy": prediction["would_buy"],
+        "label": prediction["label"],
+        "probability": prediction["probability"],
         "confidence": prediction["confidence"],
         "source": prediction["source"],
+        "votes": prediction["votes"],
+        "fused_accuracy": prediction.get("fused_accuracy"),
         "model_accuracy": review_model_accuracy,
     })
 
@@ -396,31 +404,52 @@ def create_review(review_id):
         # Get review details from the form
         review_title = request.form.get("title", "").strip()
         review_text = request.form.get("body", "").strip()
-        is_a_buyer = request.form.get("is_a_buyer") == "on"
-        
         user_rating = int(request.form.get("rating", 0) or 0)
+        author = request.form.get("username", "").strip() or "Anonymous"
+        label_mode = request.form.get("label_mode", "ai")
+        manual_label = request.form.get("manual_label", "")
 
         if review_text:
-            # Run ML prediction on the submitted review text
-            review_result = predict_review_rating(review_text)
+            # Run the three-model ensemble, then let the user override its label.
+            review_result = predict_for_review(review_title, review_text, product_info, user_rating)
+            ai_is_buyer = bool(review_result["would_buy"])
+            if label_mode == "override" and manual_label in {"buyer", "not_buyer"}:
+                final_is_buyer = manual_label == "buyer"
+                label_source = "User override"
+            else:
+                final_is_buyer = ai_is_buyer
+                label_source = "AI ensemble"
+
+            created_review_id = next_created_review_id()
             new_review = {
-                "review_id": 0,
+                "review_id": created_review_id,
+                "product_review_id": int(product_info["review_id"]),
                 "review_title": review_title if review_title else "New customer review",
                 "review_text": review_text,
-                "review_rating": user_rating if user_rating else review_result["rating"],
-                "is_a_buyer": is_a_buyer,
-                "is_buyer": is_a_buyer,
+                "review_rating": user_rating,
+                "author": author,
+                "is_a_buyer": final_is_buyer,
+                "is_buyer": final_is_buyer,
                 "product_title": product_info["product_title"],
                 "brand_name": product_info["brand_name"],
-                "avg_product_rating": product_info.get("avg_product_rating", 0),
-                "price": product_info.get("price", 0),
-                "predicted_sentiment": review_result["sentiment"],
+                "avg_product_rating": float(product_info.get("avg_product_rating", 0) or 0),
+                "price": float(product_info.get("price", 0) or 0),
+                "image": product_dict["image"],
+                "created_by_user": True,
+                "ai_predicted_buyer": ai_is_buyer,
+                "ai_predicted_label": review_result["label"],
+                "final_label": binary_label(final_is_buyer),
+                "label_source": label_source,
+                "prediction_probability": review_result["probability"],
                 "prediction_confidence": review_result["confidence"],
-                "created_by_user": True
-         }
-            # Store the new review in memory for this session
+                "prediction_source": review_result["source"],
+                "model_votes": review_result["votes"],
+            }
+            # Store the new review in memory and on disk for a stable URL.
             new_reviews.insert(0, new_review)
+            save_created_reviews(new_reviews)
             flash("Review saved successfully.", "success")
+            return redirect(url_for("review_detail", review_id=created_review_id))
 
     return render_template(
         "create_review.html",
@@ -510,8 +539,8 @@ def admin_dashboard():
         brand_values=[int(x) for x in brand_top.values],
         model_metrics={
             "accuracy": round(review_model_accuracy or 0, 3),
-            "features": "TF-IDF",
-            "classifier": "Logistic Regression",
+            "features": "Text + rating/product metadata + language cues",
+            "classifier": "Weighted 3-model ensemble",
         },
     )
 

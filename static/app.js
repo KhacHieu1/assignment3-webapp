@@ -281,14 +281,12 @@
   /* Create review: star rating picker */
   var starRatingRoot = qs("[data-star-rating]");
   var ratingInput = qs("[data-rating-input]");
-  var ratingTouched = false;
 
-  function setStarRating(value, fromUser) {
+  function setStarRating(value) {
     if (!ratingInput || !starRatingRoot) return;
     var n = parseInt(value, 10);
     if (n < 1 || n > 5) return;
     ratingInput.value = String(n);
-    if (fromUser) ratingTouched = true;
     qsa("[data-star-value]", starRatingRoot).forEach(function (btn) {
       var v = parseInt(btn.getAttribute("data-star-value"), 10);
       btn.classList.toggle("is-active", v <= n);
@@ -299,7 +297,7 @@
   if (starRatingRoot && ratingInput) {
     qsa("[data-star-value]", starRatingRoot).forEach(function (btn) {
       btn.addEventListener("click", function () {
-        setStarRating(btn.getAttribute("data-star-value"), true);
+        setStarRating(btn.getAttribute("data-star-value"));
       });
       btn.addEventListener("mouseenter", function () {
         var hover = parseInt(btn.getAttribute("data-star-value"), 10);
@@ -314,7 +312,7 @@
         b.classList.remove("is-hover");
       });
       var current = parseInt(ratingInput.value, 10);
-      if (current >= 1) setStarRating(current, false);
+      if (current >= 1) setStarRating(current);
     });
   }
 
@@ -338,13 +336,22 @@
     var lbl = qs("[data-prediction-label]", predBox);
     var conf = qs("[data-prediction-confidence]", predBox);
     var expl = qs("[data-prediction-explainer]", predBox);
+    var votesList = qs("[data-model-votes]", predBox);
     var t2 = null;
 
     function predictReview(title, text) {
+      var formRoot = qs("[data-review-form]");
+      var selectedRating = ratingInput ? ratingInput.value : "";
+      var productReviewId = formRoot ? formRoot.getAttribute("data-product-review-id") : "";
       return fetch("/api/review-prediction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ review_title: title, review_text: text }),
+        body: JSON.stringify({
+          review_title: title,
+          review_text: text,
+          review_rating: selectedRating,
+          product_review_id: productReviewId,
+        }),
       }).then(function (response) {
         if (!response.ok) throw new Error("Prediction request failed");
         return response.json();
@@ -369,10 +376,20 @@
           .then(function (out) {
             if (load) load.hidden = true;
             if (res) res.hidden = false;
-            if (lbl) lbl.textContent = out.rating + "/5 - " + out.sentiment;
+            if (lbl) lbl.textContent = out.label;
             if (conf) conf.textContent = out.confidence ? out.confidence + "%" : "Not available";
-            if (expl) expl.textContent = "Prediction source: " + (out.source || "ML model") + ".";
-            if (!ratingTouched && out.rating) setStarRating(out.rating, false);
+            if (expl) {
+              expl.textContent = "Prediction source: " + (out.source || "ML model") + ".";
+            }
+            if (votesList) {
+              votesList.innerHTML = "";
+              (out.votes || []).forEach(function (vote) {
+                var li = document.createElement("li");
+                var pct = Math.round((vote.probability || 0) * 100);
+                li.textContent = vote.name + ": " + vote.label + " (" + pct + "% buyer probability)";
+                votesList.appendChild(li);
+              });
+            }
           })
           .catch(function () {
             if (load) load.hidden = true;
@@ -380,6 +397,7 @@
             if (lbl) lbl.textContent = "Prediction unavailable";
             if (conf) conf.textContent = "Not available";
             if (expl) expl.textContent = "Please submit the review to run the server-side prediction.";
+            if (votesList) votesList.innerHTML = "";
           });
       }, 450);
     }
@@ -389,6 +407,11 @@
     }
     if (reviewTitle) {
       reviewTitle.addEventListener("input", runPrediction);
+    }
+    if (ratingInput && starRatingRoot) {
+      qsa("[data-star-value]", starRatingRoot).forEach(function (btn) {
+        btn.addEventListener("click", runPrediction);
+      });
     }
   }
 

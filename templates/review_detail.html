@@ -21,8 +21,19 @@
                 ({{ review.review_rating }}/5)
             </dd></div>
             {% if review.created_by_user %}
-            <div><dt>Model prediction</dt><dd>{{ review.predicted_sentiment }} / {{ review.predicted_rating }} stars</dd></div>
+            <div><dt>AI suggestion</dt><dd>{{ review.ai_predicted_label or review.predicted_sentiment }}</dd></div>
+            <div><dt>Final label</dt><dd>{{ review.final_label or ("Would buy" if review.is_buyer else "Would not buy") }}</dd></div>
+            <div><dt>Label source</dt><dd>{{ review.label_source or review.prediction_source }}</dd></div>
             <div><dt>Confidence</dt><dd>{{ review.prediction_confidence }}%</dd></div>
+            {% if review.model_votes %}
+            <div><dt>Model votes</dt><dd>
+                <ul class="model-vote-list review-vote-list">
+                    {% for vote in review.model_votes %}
+                    <li>{{ vote.name }}: {{ vote.label }} ({{ "%.0f"|format(vote.probability * 100) }}%)</li>
+                    {% endfor %}
+                </ul>
+            </dd></div>
+            {% endif %}
             {% else %}
             <div><dt>Review type</dt><dd>Previous Review</dd></div>
             {% endif %}
