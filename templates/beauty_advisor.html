@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Beauty Advisor{% endblock %}
+{% block body_class %}page-beauty-advisor{% endblock %}
+
+{% block content %}
+<div class="narrow-page advisor-page">
+    <header class="page-intro">
+        <p class="eyebrow">Budget advisor</p>
+        <h1 class="page-title">AI-powered beauty recommendations</h1>
+        <p class="page-lead">Enter your budget and preferences. We rank products by rating, popularity, and budget efficiency—then suggest add-ons or a complete skincare set.</p>
+    </header>
+
+    <form class="panel advisor-form" method="post" action="{{ url_for('beauty_advisor') }}">
+        <div class="form-row">
+            <label for="budget">Available budget (₹) <span class="req">*</span></label>
+            <input class="input" id="budget" name="budget" type="number" min="1" step="1" required
+                   value="{{ form.budget }}" placeholder="e.g. 1200">
+        </div>
+
+        <fieldset class="form-row advisor-mode-fieldset">
+            <legend class="label">Recommendation type <span class="req">*</span></legend>
+            <div class="advisor-mode-options">
+                <label class="advisor-mode-option">
+                    <input type="radio" name="mode" value="single" {% if form.mode != 'set' %}checked{% endif %}>
+                    <span>Single product</span>
+                </label>
+                <label class="advisor-mode-option">
+                    <input type="radio" name="mode" value="set" {% if form.mode == 'set' %}checked{% endif %}>
+                    <span>Complete skincare set</span>
+                </label>
+            </div>
+        </fieldset>
+
+        <div class="form-row-split">
+            <div class="form-row">
+                <label for="brand_pref">Preferred brand (optional)</label>
+                <input class="input" id="brand_pref" name="brand_pref" type="text" list="brand-suggestions"
+                       value="{{ form.brand_pref }}" placeholder="e.g. Olay">
+            </div>
+            <div class="form-row">
+                <label for="product_type">Product preference (optional)</label>
+                <select class="input" id="product_type" name="product_type">
+                    <option value="" {% if not form.product_type %}selected{% endif %}>Any type</option>
+                    <option value="skincare" {% if form.product_type == 'skincare' %}selected{% endif %}>Skincare (general)</option>
+                    <option value="makeup" {% if form.product_type == 'makeup' %}selected{% endif %}>Makeup</option>
+                    <option value="cleanser" {% if form.product_type == 'cleanser' %}selected{% endif %}>Cleanser</option>
+                    <option value="toner" {% if form.product_type == 'toner' %}selected{% endif %}>Toner</option>
+                    <option value="serum" {% if form.product_type == 'serum' %}selected{% endif %}>Serum</option>
+                    <option value="moisturiser" {% if form.product_type == 'moisturiser' %}selected{% endif %}>Moisturiser</option>
+                    <option value="sunscreen" {% if form.product_type == 'sunscreen' %}selected{% endif %}>Sunscreen</option>
+                    <option value="foundation" {% if form.product_type == 'foundation' %}selected{% endif %}>Foundation</option>
+                    <option value="lip" {% if form.product_type == 'lip' %}selected{% endif %}>Lip</option>
+                </select>
+            </div>
+        </div>
+
+        <datalist id="brand-suggestions">
+            {% for b in brands %}
+            <option value="{{ b }}"></option>
+            {% endfor %}
+        </datalist>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">Generate recommendations</button>
+        </div>
+    </form>
+
+    {% if result %}
+    <section class="advisor-results" aria-live="polite">
+        {% if not result.ok %}
+        <div class="empty-state panel">
+            <h2 class="empty-title">No recommendations found</h2>
+            <p class="empty-text">{{ result.message }}</p>
+        </div>
+        {% else %}
+        <div class="panel advisor-summary">
+            <h2 class="panel-title">Your personalised plan</h2>
+            <p class="advisor-explanation">{{ result.explanation }}</p>
+            <p class="field-hint">{{ result.formula }}</p>
+            <p class="advisor-budget-line">
+                Budget: <strong>₹{{ "%.0f"|format(result.budget) }}</strong>
+                · Remaining: <strong>₹{{ "%.0f"|format(result.remaining_budget) }}</strong>
+                {% if result.mode == 'set' %}
+                · Set completeness: <strong>{{ result.completeness }}%</strong>
+                {% endif %}
+            </p>
+        </div>
+
+        {% if result.mode == 'single' %}
+        <h3 class="advisor-section-title">Recommended product</h3>
+        <div class="advisor-card-grid advisor-card-grid-single">
+            {% set card = result.main %}
+            <article class="advisor-card panel">
+                <a href="{{ url_for('product_detail', review_id=card.review_id) }}" class="advisor-card-link">
+                    <img src="{{ url_for('static', filename=card.image) }}" alt="" width="200" height="250" loading="lazy">
+                    <p class="product-brand">{{ card.brand_name }}</p>
+                    <h4 class="product-name">{{ card.product_title }}</h4>
+                    <p class="product-meta"><span class="price">₹{{ "%.0f"|format(card.price) }}</span><span class="rating">{{ "%.1f"|format(card.avg_product_rating) }} ★</span></p>
+                    <p class="advisor-card-meta">{{ card.category|capitalize }} · Match score {{ card.score }}%</p>
+                </a>
+            </article>
+        </div>
+        {% if result.extras %}
+        <h3 class="advisor-section-title">Use your remaining budget</h3>
+        <div class="advisor-card-grid">
+            {% for card in result.extras %}
+            <article class="advisor-card panel">
+                <a href="{{ url_for('product_detail', review_id=card.review_id) }}" class="advisor-card-link">
+                    <img src="{{ url_for('static', filename=card.image) }}" alt="" width="160" height="200" loading="lazy">
+                    <p class="product-brand">{{ card.brand_name }}</p>
+                    <h4 class="product-name">{{ card.product_title }}</h4>
+                    <p class="product-meta"><span class="price">₹{{ "%.0f"|format(card.price) }}</span><span class="rating">{{ "%.1f"|format(card.avg_product_rating) }} ★</span></p>
+                    <p class="advisor-card-meta">{{ card.category|capitalize }} · Match {{ card.score }}%</p>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <h3 class="advisor-section-title">Recommended set{% if result.primary_brand %} · {{ result.primary_brand }}{% endif %}</h3>
+        <div class="advisor-card-grid">
+            {% for card in result.set_items %}
+            <article class="advisor-card panel">
+                <a href="{{ url_for('product_detail', review_id=card.review_id) }}" class="advisor-card-link">
+                    <img src="{{ url_for('static', filename=card.image) }}" alt="" width="160" height="200" loading="lazy">
+                    <p class="product-brand">{{ card.brand_name }}</p>
+                    <h4 class="product-name">{{ card.product_title }}</h4>
+                    <p class="product-meta"><span class="price">₹{{ "%.0f"|format(card.price) }}</span><span class="rating">{{ "%.1f"|format(card.avg_product_rating) }} ★</span></p>
+                    <p class="advisor-card-meta">{{ card.category|capitalize }} · Match {{ card.score }}%</p>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+        {% if result.supplements %}
+        <h3 class="advisor-section-title">Added from other brands</h3>
+        <p class="field-hint">Filled gaps for: {% for card in result.supplements %}{{ card.category }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+        <div class="advisor-card-grid">
+            {% for card in result.supplements %}
+            <article class="advisor-card panel">
+                <a href="{{ url_for('product_detail', review_id=card.review_id) }}" class="advisor-card-link">
+                    <img src="{{ url_for('static', filename=card.image) }}" alt="" width="160" height="200" loading="lazy">
+                    <p class="product-brand">{{ card.brand_name }}</p>
+                    <h4 class="product-name">{{ card.product_title }}</h4>
+                    <p class="product-meta"><span class="price">₹{{ "%.0f"|format(card.price) }}</span><span class="rating">{{ "%.1f"|format(card.avg_product_rating) }} ★</span></p>
+                    <p class="advisor-card-meta">{{ card.category|capitalize }} · Supplement</p>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+        {% endif %}
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

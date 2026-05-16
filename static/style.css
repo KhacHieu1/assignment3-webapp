@@ -1573,6 +1573,99 @@ a:hover {
 .footer-links a:hover {
   text-decoration: underline;
 }
+/* Beauty advisor (Task 4) */
+.advisor-page {
+  max-width: 960px;
+}
+.advisor-form {
+  margin-bottom: 32px;
+}
+.advisor-mode-fieldset {
+  border: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.advisor-mode-fieldset .label {
+  margin-bottom: 10px;
+}
+.advisor-mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.advisor-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.advisor-mode-option:has(input:checked) {
+  border-color: var(--ink);
+  background: var(--bg);
+}
+.advisor-results {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.advisor-summary .advisor-explanation {
+  margin: 0 0 10px;
+  line-height: 1.6;
+  color: #3a3a3a;
+}
+.advisor-budget-line {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+.advisor-section-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  margin: 0;
+}
+.advisor-card-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.advisor-card-grid-single {
+  grid-template-columns: minmax(240px, 320px);
+}
+.advisor-card {
+  padding: 0;
+  overflow: hidden;
+}
+.advisor-card-link {
+  display: block;
+  padding: 14px;
+  text-decoration: none;
+  color: inherit;
+}
+.advisor-card-link img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  object-fit: cover;
+  margin-bottom: 12px;
+  background: var(--bg);
+}
+.advisor-card .product-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 6px 0 8px;
+  line-height: 1.35;
+}
+.advisor-card-meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
 .footer-bottom {
   max-width: var(--max);
   margin: 32px auto 0;
