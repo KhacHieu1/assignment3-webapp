@@ -8,7 +8,9 @@ from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = "velora-dev-secret-change-in-production"
-
+# Task 1: I load processed.csv from Milestone 1 and merge in review_rating from the
+# original CSV since it wasn't saved during preprocessing.
+# Loading once at startup keeps search requests fast instead of reloading each time.
 df = pd.read_csv("processed.csv")
 df_original = pd.read_csv("cosmetics_beauty_products_reviews.csv")
 
@@ -164,7 +166,10 @@ def find_created_review(review_id):
             return review
     return None
 
-
+# Task 1: I combine brand name, product title and review text into one string per product
+# so I only need one pass to check all keyword matches.
+# Lowercasing and stripping apostrophes handles cases like "loreal" matching
+# "L'Oreal Paris" and makes the search case-insensitive as required.
 def search_mask(query):
     query_lower = query.strip().lower()
     if not query_lower:
@@ -181,7 +186,10 @@ def search_mask(query):
         mask = mask & combined.str.contains(keyword, na=False, regex=False)
     return mask
 
-
+# Task 1: After filtering I rank results by how well they match the query.
+# A full query match in the brand name scores highest (+25), then product title (+20),
+# then individual keywords add smaller scores on top.
+# This puts the most relevant products first without needing a complex ML model.
 def relevance_score(query, row):
     """Simple deterministic pseudo-score for UI (tutor-visible ranking signal)."""
     q = query.lower().strip()
@@ -221,7 +229,9 @@ def home():
         categories=categories,
     )
 
-
+# Task 1: Search route — takes the query from the URL, runs search_mask to filter
+# matching products, scores and sorts them by relevance, then passes
+# up to 48 deduplicated results to the results page.
 @app.route("/search")
 def search():
     query = request.args.get("query", "").strip()
@@ -254,7 +264,8 @@ def search():
         count=count,
     )
 
-
+# Task 1: Autocomplete endpoint — as the user types, this returns up to 12 matching
+# brand names and product titles as JSON for the search bar suggestions.
 @app.route("/api/suggestions")
 def suggestions():
     q = request.args.get("q", "").strip().lower()
@@ -306,7 +317,9 @@ def review_prediction_api():
         "model_accuracy": review_model_accuracy,
     })
 
-
+# Task 1: Product detail route — loads all reviews for the product, calculates buyer
+# ratio, fetches similar products, and prepends any new user reviews to the top.
+# The review_id in the URL identifies which product to show.
 @app.route("/product/<int:review_id>")
 def product_detail(review_id):
     product_rows = df[df["review_id"] == review_id]
