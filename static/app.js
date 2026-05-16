@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  /* Small DOM helpers keep selectors concise. */
   function qs(sel, root) {
     return (root || document).querySelector(sel);
   }
@@ -80,6 +81,7 @@
     var urlBase = input && input.getAttribute("data-suggest-url");
     var tmo = null;
 
+    // Show the clear button only when the search box has text.
     function setClearVisible() {
       if (!clearBtn || !input) return;
       clearBtn.hidden = !input.value.length;
@@ -97,6 +99,7 @@
       });
     }
 
+    // Render autocomplete choices returned by the Flask suggestion route.
     function renderSuggest(items) {
       if (!panel) return;
       panel.innerHTML = "";
@@ -219,6 +222,7 @@
     }
 
     function apply() {
+      // Filter visible cards, then reorder them by the selected sort option.
       if (loadingBar) {
         loadingBar.hidden = false;
       }
@@ -282,6 +286,7 @@
   var starRatingRoot = qs("[data-star-rating]");
   var ratingInput = qs("[data-rating-input]");
 
+  // Save the selected rating and update the highlighted stars.
   function setStarRating(value) {
     if (!ratingInput || !starRatingRoot) return;
     var n = parseInt(value, 10);
@@ -339,6 +344,7 @@
     var votesList = qs("[data-model-votes]", predBox);
     var t2 = null;
 
+    // Send review text and rating to Flask for live buyer-label prediction.
     function predictReview(title, text) {
       var formRoot = qs("[data-review-form]");
       var selectedRating = ratingInput ? ratingInput.value : "";
@@ -383,6 +389,7 @@
             }
             if (votesList) {
               votesList.innerHTML = "";
+              // Show each model vote so the AI suggestion is transparent.
               (out.votes || []).forEach(function (vote) {
                 var li = document.createElement("li");
                 var pct = Math.round((vote.probability || 0) * 100);
@@ -415,6 +422,7 @@
     }
   }
 
+  /* Allow reviewers to keep the AI label or override it manually. */
   qsa("[data-label-mode]").forEach(function (r) {
     r.addEventListener("change", function () {
       var panel = qs("[data-override-panel]");
@@ -424,6 +432,7 @@
     });
   });
 
+  /* Client-side validation before Flask saves the review. */
   var reviewForm = qs("[data-review-form]");
   if (reviewForm) {
     reviewForm.addEventListener("submit", function (e) {

@@ -3,6 +3,7 @@
 {% block body_class %}page-beauty-advisor{% endblock %}
 
 {% block content %}
+{# Advisor page: collect budget/preferences and show recommendations. #}
 <div class="narrow-page advisor-page">
     <header class="page-intro">
         <p class="eyebrow">Budget advisor</p>
@@ -10,6 +11,7 @@
         <p class="page-lead">Enter your budget and preferences. We rank products by rating, popularity, and budget efficiency—then suggest add-ons or a complete skincare set.</p>
     </header>
 
+    {# User input form for budget-aware recommendation generation. #}
     <form class="panel advisor-form" method="post" action="{{ url_for('beauty_advisor') }}">
         <div class="form-row">
             <label for="budget">Available budget (₹) <span class="req">*</span></label>
@@ -65,6 +67,7 @@
         </div>
     </form>
 
+    {# Recommendation results appear only after a valid form submission. #}
     {% if result %}
     <section class="advisor-results" aria-live="polite">
         {% if not result.ok %}

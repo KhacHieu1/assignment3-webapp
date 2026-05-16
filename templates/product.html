@@ -3,6 +3,7 @@
 {% block body_class %}page-product{% endblock %}
 
 {% block content %}
+{# Product detail area shows catalogue data and review summary. #}
 <div class="product-layout">
     <div class="product-gallery">
         <div class="product-gallery-main">
@@ -63,6 +64,7 @@
     </div>
 </div>
 
+{# Review list includes both dataset reviews and newly created reviews. #}
 <section class="section section-reviews" aria-labelledby="reviews-heading">
     <div class="section-head row-between">
         <div>
@@ -112,6 +114,7 @@
     {% endif %}
 </section>
 
+{# Similar products are shown beneath the review list. #}
 <section id="similar" class="section section-tint" aria-labelledby="similar-heading">
     <div class="section-head row-between">
         <div>

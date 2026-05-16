@@ -1,3 +1,5 @@
+"""Main Flask app connecting product browsing, reviews, recommendations, and advisor pages."""
+
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from recommendations import init_recommendations, get_similar_products
 from review_models import binary_label, predict_review_label, train_review_label_ensemble
@@ -9,9 +11,14 @@ from pathlib import Path
 app = Flask(__name__)
 app.secret_key = "velora-dev-secret-change-in-production"
 
+# Load the main processed dataset and the original review dataset.
+# The processed file is used for search/model features, while the original file
+# still contains useful raw fields such as the star rating.
 df = pd.read_csv("processed.csv")
 df_original = pd.read_csv("cosmetics_beauty_products_reviews.csv")
 
+# Add the original star rating back into the processed dataframe.
+# This lets the review label model use both text features and numeric rating features.
 df = df.merge(
     df_original[["review_id", "review_rating"]],
     on="review_id",
@@ -26,7 +33,11 @@ USER_REVIEW_ID_START = 900000000
 new_reviews = []
 
 
+# These helper functions manage reviews created from the web form.
+# They are stored in JSON because this assignment app does not need a full database,
+# but the saved file still lets created review URLs work after restarting Flask.
 def load_created_reviews():
+    # Read user-created reviews so their /review/<id> URLs survive app restarts.
     if not CREATED_REVIEWS_PATH.exists():
         return []
     try:
@@ -37,6 +48,7 @@ def load_created_reviews():
 
 
 def save_created_reviews(reviews):
+    # Save created reviews as simple JSON instead of adding a database dependency.
     CREATED_REVIEWS_PATH.write_text(
         json.dumps(reviews, indent=2, ensure_ascii=False),
         encoding="utf-8",
@@ -44,6 +56,7 @@ def save_created_reviews(reviews):
 
 
 def next_created_review_id():
+    # Keep new review IDs away from dataset review IDs.
     max_existing = USER_REVIEW_ID_START
     for review in new_reviews:
         try:
@@ -53,7 +66,11 @@ def next_created_review_id():
     return max_existing + 1
 
 
+# Prediction helpers keep the Flask routes cleaner.
+# They collect the product context once, then call the shared model function so
+# both the live preview API and the final form submission use the same logic.
 def product_context(product_info, review_rating=None):
+    # Package structured features used by the buyer-label ensemble.
     return {
         "review_rating": review_rating,
         "avg_product_rating": product_info.get("avg_product_rating", 0),
@@ -62,6 +79,7 @@ def product_context(product_info, review_rating=None):
 
 
 def predict_for_review(review_title, review_text, product_info, review_rating=None):
+    # Central wrapper so the form and API use the same prediction logic.
     return predict_review_label(
         review_label_ensemble,
         review_text,
@@ -70,7 +88,11 @@ def predict_for_review(review_title, review_text, product_info, review_rating=No
     )
 
 
+# Older saved reviews may have been created before the current label format.
+# This function refreshes their saved model fields so the review detail page
+# displays the same label names, confidence values, and model votes as new reviews.
 def refresh_legacy_review_labels():
+    # Upgrade older saved reviews to the current Would buy / Would not buy format.
     updated = False
     for review in new_reviews:
         if not review.get("created_by_user"):
@@ -113,9 +135,14 @@ new_reviews = load_created_reviews()
 review_label_ensemble = train_review_label_ensemble(df)
 review_model_accuracy = review_label_ensemble.get("fused_accuracy")
 refresh_legacy_review_labels()
+# Build shared recommendation indexes once for fast request handling.
 init_recommendations(df)
 init_advisor(df, df_original)
 
+
+# Template and formatting helpers.
+# These functions turn dataframe rows into simple dictionaries with images and
+# consistent review fields, which keeps the HTML templates easier to read.
 @app.context_processor
 def inject_nav():
     brands = df["brand_name"].dropna().value_counts().head(10).index.tolist()
@@ -123,10 +150,12 @@ def inject_nav():
 
 
 def image_for_review_id(review_id):
+    # Reuse six local images deterministically for product cards.
     return f"img{(int(review_id) % NUM_IMAGES) + 1}.jpg"
 
 
 def row_to_product_card(row):
+    # Convert dataframe rows into dictionaries expected by the templates.
     d = row.to_dict() if hasattr(row, "to_dict") else dict(row)
     d["image"] = image_for_review_id(d["review_id"])
     return d
@@ -138,6 +167,7 @@ def unique_products(sub_df, n=12):
 
 
 def dataset_review_record(row):
+    # Normalise dataset review fields to match user-created review fields.
     review = row.to_dict()
     review["image"] = image_for_review_id(review["review_id"])
     ib = row.get("is_a_buyer")
@@ -147,6 +177,7 @@ def dataset_review_record(row):
 
 
 def reviews_for_product(title):
+    # Show newly created reviews before existing dataset reviews.
     user_reviews = [
         review for review in new_reviews
         if review.get("product_title") == title
@@ -165,7 +196,11 @@ def find_created_review(review_id):
     return None
 
 
+# Search uses a simple AND match: every query word must appear somewhere in the
+# product brand, product title, or processed review text. This makes partial
+# searches predictable without adding another search library.
 def search_mask(query):
+    # Match all query words against brand, title, and processed review text.
     query_lower = query.strip().lower()
     if not query_lower:
         return pd.Series([False] * len(df), index=df.index)
@@ -206,6 +241,9 @@ def relevance_score(query, row):
 
 @app.route("/")
 def home():
+    # The homepage is built directly from the dataset instead of hard-coded cards.
+    # Featured products come from the first unique products, while top-rated products
+    # are sorted by average rating to give the page a useful browsing structure.
     unique = df.drop_duplicates(subset=["product_title"])
     featured = unique.head(8)
     top_rated = unique.sort_values("avg_product_rating", ascending=False).head(8)
@@ -224,6 +262,9 @@ def home():
 
 @app.route("/search")
 def search():
+    # Search first filters rows by the query, then removes duplicate product titles.
+    # A small relevance score is added so stronger brand/title matches appear higher
+    # than products where the query only appears in review text.
     query = request.args.get("query", "").strip()
     if not query:
         return redirect(url_for("home"))
@@ -257,6 +298,9 @@ def search():
 
 @app.route("/api/suggestions")
 def suggestions():
+    # This API supports the search bar autocomplete.
+    # It checks brands first, then product titles, and returns only a small list so
+    # the front-end can update quickly while the user types.
     q = request.args.get("q", "").strip().lower()
     if len(q) < 1:
         return jsonify([])
@@ -278,6 +322,9 @@ def suggestions():
 
 @app.route("/api/review-prediction", methods=["POST"])
 def review_prediction_api():
+    # The review form calls this route while the user is typing.
+    # It returns the suggested label, confidence, and individual model votes without
+    # saving anything yet, so the user can still edit or override the label.
     data = request.get_json(silent=True) or {}
     review_title = str(data.get("review_title", "")).strip()
     review_text = str(data.get("review_text", "")).strip()
@@ -309,6 +356,9 @@ def review_prediction_api():
 
 @app.route("/product/<int:review_id>")
 def product_detail(review_id):
+    # The product page starts from one review_id, then finds all reviews for the
+    # same product title. User-created reviews are placed first so newly submitted
+    # content is immediately visible on the website.
     product_rows = df[df["review_id"] == review_id]
     if product_rows.empty:
         abort(404)
@@ -325,7 +375,7 @@ def product_detail(review_id):
         ib = rev.get("is_a_buyer")
         rd["is_buyer"] = ib is True or str(ib).lower() == "true"
         reviews.append(rd)
-     # Add new reviews from this session, normalising the is_buyer key
+    # Add new reviews from this session, normalising the is_buyer key.
     product_new_reviews = []
     for r in new_reviews:
         if r["product_title"] == title:
@@ -382,6 +432,9 @@ def product_detail(review_id):
 
 @app.route("/recommendations/<int:review_id>")
 def recommendations_page(review_id):
+    # This page expands the smaller recommendation strip shown on the product page.
+    # It uses the same selected product and asks the recommendation module for more
+    # similar products based on review-text similarity.
     product_rows = df[df["review_id"] == review_id]
     if product_rows.empty:
         abort(404)
@@ -404,6 +457,9 @@ def recommendations_page(review_id):
 
 @app.route("/create-review/<int:review_id>", methods=["GET", "POST"])
 def create_review(review_id):
+    # The GET request shows the review form for a selected product.
+    # The POST request validates the submitted text/rating, predicts a buyer label,
+    # accepts the user's override choice if provided, then saves the review.
     product_rows = df[df["review_id"] == review_id]
     if product_rows.empty:
         abort(404)
@@ -412,7 +468,8 @@ def create_review(review_id):
     review_result = None
 
     if request.method == "POST":
-        # Get review details from the form
+        # Collect the user input from the form.
+        # Empty usernames become "Anonymous" so the saved review always has an author.
         review_title = request.form.get("title", "").strip()
         review_text = request.form.get("body", "").strip()
         user_rating = int(request.form.get("rating", 0) or 0)
@@ -421,7 +478,9 @@ def create_review(review_id):
         manual_label = request.form.get("manual_label", "")
 
         if review_text:
-            # Run the three-model ensemble, then let the user override its label.
+            # Run the ensemble to get the website's suggested label.
+            # If the reviewer chooses "override", the manually selected label becomes
+            # the final saved label while the original AI suggestion is still stored.
             review_result = predict_for_review(review_title, review_text, product_info, user_rating)
             ai_is_buyer = bool(review_result["would_buy"])
             if label_mode == "override" and manual_label in {"buyer", "not_buyer"}:
@@ -477,6 +536,9 @@ def create_review(review_id):
 
 @app.route("/review/<int:review_id>")
 def review_detail(review_id):
+    # Created reviews are loaded from JSON first because they contain extra fields
+    # such as AI suggestion, final label, and label source. If no created review
+    # matches, the route falls back to displaying an original dataset review.
     created_review = find_created_review(review_id)
     if created_review:
         review = dict(created_review)
@@ -521,6 +583,9 @@ def review_detail(review_id):
 
 
 def enrich_advisor_cards(result):
+    # Advisor recommendations come from product rows, but the cards still need the
+    # local image filename used by the rest of the site. This helper adds images to
+    # main picks, extras, set items, and supplements in one place.
     if not result or not result.get("ok"):
         return result
 
@@ -539,6 +604,9 @@ def enrich_advisor_cards(result):
 
 @app.route("/beauty-advisor", methods=["GET", "POST"])
 def beauty_advisor():
+    # The advisor form can return either a single product or a small routine.
+    # Budget is checked before calling the advisor logic so invalid input shows a
+    # friendly message instead of causing a server error.
     form = {
         "budget": request.form.get("budget", "") if request.method == "POST" else "",
         "mode": request.form.get("mode", "single") if request.method == "POST" else "single",
@@ -575,6 +643,9 @@ def beauty_advisor():
 
 @app.route("/admin", endpoint="admin")
 def admin_dashboard():
+    # The admin page summarises useful dataset and model information.
+    # These values are calculated from the current dataframe so the dashboard stays
+    # consistent with the data used by browsing, reviews, and recommendations.
     total_reviews = len(df)
     unique_titles = df["product_title"].nunique()
     ib = df["is_a_buyer"].apply(lambda x: x is True or str(x).lower() == "true")

@@ -3,6 +3,7 @@
 {% block body_class %}page-home{% endblock %}
 
 {% block content %}
+{# Hero carousel introduces the main shopping and review features. #}
 <section class="hero hero-carousel" aria-label="Featured">
     <div class="hero-slides">
         <article class="hero-slide is-active" data-hero-slide>
@@ -29,6 +30,7 @@
     </div>
 </section>
 
+{# Home search sends users into the product browsing flow. #}
 <section class="section home-search-cta" aria-labelledby="home-search-heading">
     <div class="section-head">
         <h2 id="home-search-heading" class="section-title">Find your next favourite</h2>
@@ -40,6 +42,7 @@
     </form>
 </section>
 
+{# Dynamic product listings are built from the dataframe in app.py. #}
 <section id="featured" class="section">
     <div class="section-head row-between">
         <div>
@@ -66,6 +69,7 @@
     </div>
 </section>
 
+{# Brand shortcuts help users browse common product groups. #}
 <section class="section section-tint">
     <div class="section-head">
         <h2 class="section-title">Popular brands</h2>
@@ -77,6 +81,7 @@
     </div>
 </section>
 
+{# Top-rated catalogue cards provide another browsing entry point. #}
 <section id="top-rated" class="section">
     <div class="section-head row-between">
         <div>
