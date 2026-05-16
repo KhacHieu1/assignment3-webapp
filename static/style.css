@@ -1315,6 +1315,15 @@ a:hover {
   font-size: 13px;
   color: var(--ink-muted);
 }
+.model-vote-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+.model-vote-list li + li {
+  margin-top: 4px;
+}
 .loading-inline {
   font-size: 14px;
   font-weight: 600;
