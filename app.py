@@ -544,7 +544,7 @@ def enrich_advisor_cards(result):
 
     if result.get("main"):
         attach(result["main"])
-    for key in ("extras", "set_items", "supplements"):
+    for key in ("extras", "set_items", "supplements", "candidates"):
         if result.get(key):
             result[key] = [attach(card) for card in result[key]]
     return result
@@ -560,7 +560,19 @@ def beauty_advisor():
     }
     result = None
 
+    # Support both POST (form submit) and GET (see-more links using query params)
+    do_compute = False
     if request.method == "POST":
+        do_compute = True
+    elif request.method == "GET" and request.args.get("budget"):
+        # populate form from query string for 'see more' links
+        form["budget"] = request.args.get("budget", form["budget"])
+        form["mode"] = request.args.get("mode", form["mode"])
+        form["brand_pref"] = request.args.get("brand_pref", form["brand_pref"]).strip()
+        form["product_type"] = request.args.get("product_type", form["product_type"]).strip()
+        do_compute = True
+
+    if do_compute:
         try:
             budget = float(form["budget"])
         except (TypeError, ValueError):
@@ -572,6 +584,10 @@ def beauty_advisor():
                 result = recommend_set(budget, form["brand_pref"], form["product_type"])
             else:
                 result = recommend_single(budget, form["brand_pref"], form["product_type"])
+            # include form context for template links
+            if isinstance(result, dict):
+                result["brand_pref"] = form["brand_pref"]
+                result["product_type"] = form["product_type"]
             result = enrich_advisor_cards(result)
 
     return render_template(
