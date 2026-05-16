@@ -397,6 +397,8 @@ def create_review(review_id):
         review_title = request.form.get("title", "").strip()
         review_text = request.form.get("body", "").strip()
         is_a_buyer = request.form.get("is_a_buyer") == "on"
+        
+        user_rating = int(request.form.get("rating", 0) or 0)
 
         if review_text:
             # Run ML prediction on the submitted review text
@@ -405,7 +407,7 @@ def create_review(review_id):
                 "review_id": 0,
                 "review_title": review_title if review_title else "New customer review",
                 "review_text": review_text,
-                "review_rating": review_result["rating"],
+                "review_rating": user_rating if user_rating else review_result["rating"],
                 "is_a_buyer": is_a_buyer,
                 "is_buyer": is_a_buyer,
                 "product_title": product_info["product_title"],
