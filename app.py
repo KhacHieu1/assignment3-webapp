@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
+from recommendations import init_recommendations, get_similar_products
 import pandas as pd
 import re
 
@@ -117,7 +118,7 @@ def predict_review_rating(review_text):
 
 # Train the model once when the app starts
 review_vectorizer, review_model, review_model_accuracy = train_review_model()
-
+init_recommendations(df)
 
 @app.context_processor
 def inject_nav():
@@ -437,7 +438,8 @@ def review_detail(review_id):
     created_review = find_created_review(review_id)
     if created_review:
         review = dict(created_review)
-        product_link = url_for("product_detail", review_id=int(review["product_review_id"]))
+        product_review_id = review.get("product_review_id", review_id)
+        product_link = url_for("product_detail", review_id=int(product_review_id))
         return render_template(
             "review_detail.html",
             review=review,
