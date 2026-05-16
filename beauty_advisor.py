@@ -171,30 +171,46 @@ def recommend_single(budget, brand_pref="", product_type=""):
         }
 
     ranked = _normalize_scores(candidates, budget).sort_values("_score", ascending=False)
+    # Build top candidates list (sorted by score) for 'list' view, max 10 shown
+    total_candidates = len(ranked)
+    top_candidates = ranked.head(10)
+    candidates_list = [
+        _row_to_result(row, role="candidate") for _, row in top_candidates.iterrows()
+    ]
+
+    # Primary pick
     main = ranked.iloc[0]
     remaining = budget - float(main["price"])
 
+    # Extras pool for remaining budget (up to 10 shown, with more count)
     extras = []
+    extra_pool = ranked.iloc[1:].copy()
     if remaining > 0:
-        extra_pool = ranked.iloc[1:].copy()
         extra_pool = extra_pool[extra_pool["price"] <= remaining]
-        extra_pool = extra_pool.sort_values("_score", ascending=False).head(3)
-        for _, row in extra_pool.iterrows():
+        extra_pool = extra_pool.sort_values("_score", ascending=False)
+        extras_shown = extra_pool.head(10)
+        for _, row in extras_shown.iterrows():
             extras.append(_row_to_result(row, role="extra"))
-            remaining -= float(row["price"])
+
+    more_candidates = max(0, total_candidates - len(candidates_list))
+    more_extras = max(0, len(extra_pool) - len(extras)) if remaining > 0 else 0
 
     explanation = (
         f"Top pick balances rating ({main['avg_product_rating']:.1f}★), "
         f"popularity ({int(main['review_count'])} reviews), and value within ₹{budget:.0f}."
     )
     if extras:
-        explanation += f" With ₹{max(0, remaining):.0f} left, we added budget-friendly add-ons."
+        explanation += f" With ₹{max(0, remaining):.0f} left, we suggest add-ons to complement the main product."
 
     return {
         "ok": True,
         "mode": "single",
         "main": _row_to_result(main, role="main"),
+        "candidates": candidates_list,
+        "total_candidates": total_candidates,
+        "more_candidates": more_candidates,
         "extras": extras,
+        "more_extras": more_extras,
         "remaining_budget": max(0, remaining),
         "budget": budget,
         "explanation": explanation,
