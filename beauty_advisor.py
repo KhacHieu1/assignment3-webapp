@@ -1,10 +1,13 @@
-"""Task 4: budget-aware beauty product and set recommendations."""
+"""Budget-aware beauty product and set recommendations."""
 
 import re
 import pandas as pd
 
 SET_CATEGORIES = ["cleanser", "toner", "serum", "moisturiser", "sunscreen"]
 
+# Keyword rules map product titles/tags into broad beauty categories.
+# The dataset does not always provide a clean product type, so the advisor infers
+# categories from common words such as "cleanser", "serum", "spf", or "lipstick".
 CATEGORY_KEYWORDS = {
     "cleanser": ["cleanser", "face wash", "facewash", "cleansing", "micellar", "wash"],
     "toner": ["toner", "tonique"],
@@ -37,6 +40,9 @@ _max_reviews = 1
 
 
 def infer_category(title, tags=""):
+    # Infer a product category from title and tag keywords.
+    # This category is later used to filter skincare/makeup products and to build
+    # a routine with different steps instead of recommending five similar items.
     text = f"{title} {tags}".lower()
     for category, keywords in CATEGORY_KEYWORDS.items():
         if any(keyword in text for keyword in keywords):
@@ -45,6 +51,9 @@ def infer_category(title, tags=""):
 
 
 def build_catalog(df, df_original=None):
+    # Create one product-level row with price, rating, popularity, and category.
+    # The web app review data has many rows per product, so this groups by product
+    # title and keeps the fields needed for advisor scoring.
     work = df.copy()
     if df_original is not None and "product_rating_count" in df_original.columns:
         counts = (
@@ -65,6 +74,8 @@ def build_catalog(df, df_original=None):
             tags = ""
         review_count = int(len(group))
         rating_count = row.get("product_rating_count")
+        # If the original dataset has a product-level rating count, use it as the
+        # stronger popularity signal; otherwise use the number of reviews available.
         if pd.notna(rating_count):
             review_count = max(review_count, int(rating_count))
 
@@ -92,6 +103,9 @@ def build_catalog(df, df_original=None):
 
 
 def init_advisor(df, df_original=None):
+    # Cache the advisor catalog once so each request can rank quickly.
+    # _max_reviews is stored too because popularity scores need the largest review
+    # count for normalising products onto a 0-1 scale.
     global _catalog, _max_reviews
     _catalog = build_catalog(df, df_original)
     _max_reviews = int(_catalog["review_count"].max()) if len(_catalog) else 1
@@ -99,12 +113,18 @@ def init_advisor(df, df_original=None):
 
 
 def get_brands():
+    # Provide brand suggestions for the advisor form.
+    # The template uses this list for quick user input instead of expecting users
+    # to remember exact brand names from the dataset.
     if _catalog is None or _catalog.empty:
         return []
     return sorted(_catalog["brand_name"].dropna().unique().tolist())
 
 
 def _normalize_scores(candidates, budget):
+    # Score products by rating, popularity, and value for the user's budget.
+    # Rating rewards quality, popularity rewards products with more review evidence,
+    # and value rewards products that fit comfortably inside the user's budget.
     if candidates.empty:
         return candidates
 
@@ -124,6 +144,9 @@ def _normalize_scores(candidates, budget):
 
 
 def _filter_candidates(budget, brand_pref="", product_type=""):
+    # Apply budget, brand, and product-type filters before ranking.
+    # Filtering first keeps the recommendation logic simple: the scoring step only
+    # compares products that the user can afford and that match their preferences.
     if _catalog is None or _catalog.empty:
         return _catalog.iloc[0:0]
 
@@ -148,6 +171,9 @@ def _filter_candidates(budget, brand_pref="", product_type=""):
 
 
 def _row_to_result(row, role=""):
+    # Convert a catalog row into the smaller dictionary expected by the template.
+    # The optional role tells the page whether the item is the main pick, an extra,
+    # part of a set, or a supplement.
     return {
         "review_id": int(row["review_id"]),
         "product_title": row["product_title"],
@@ -162,6 +188,9 @@ def _row_to_result(row, role=""):
 
 
 def recommend_single(budget, brand_pref="", product_type=""):
+    # Recommend the best single product plus optional add-ons.
+    # The highest-scoring affordable product becomes the main recommendation; any
+    # remaining budget is used to add a few useful extras.
     budget = float(budget)
     candidates = _filter_candidates(budget, brand_pref, product_type)
     if candidates.empty:
@@ -219,6 +248,9 @@ def recommend_single(budget, brand_pref="", product_type=""):
 
 
 def _pick_best_for_category(pool, category, spent, budget, used_titles):
+    # Pick the strongest affordable unused item for one routine category.
+    # used_titles prevents the same product appearing twice, and spent/budget keep
+    # the routine from exceeding the user's limit.
     options = pool[
         (pool["category"] == category)
         & (~pool["product_title"].isin(used_titles))
@@ -231,6 +263,9 @@ def _pick_best_for_category(pool, category, spent, budget, used_titles):
 
 
 def _build_set_for_brand(brand, pool, budget):
+    # Try building a skincare routine from one primary brand.
+    # A same-brand set usually feels more consistent, so the advisor first checks
+    # whether one brand can cover cleanser, toner, serum, moisturiser, and sunscreen.
     brand_pool = pool[pool["brand_name"] == brand]
     if brand_pool.empty:
         return None, set()
@@ -267,6 +302,9 @@ def _build_set_for_brand(brand, pool, budget):
 
 
 def recommend_set(budget, brand_pref="", product_type=""):
+    # Recommend a multi-step skincare set within the user's budget.
+    # The best brand bundle is chosen first, then missing routine categories are
+    # filled with affordable products from other brands if needed.
     budget = float(budget)
     pool = _filter_candidates(budget, brand_pref="", product_type=product_type or "skincare")
     if brand_pref.strip():

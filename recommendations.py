@@ -1,4 +1,4 @@
-"""Task 3: content-based product recommendations (TF-IDF + cosine on processed_review)."""
+"""Content-based product recommendations using TF-IDF and cosine similarity."""
 
 import numpy as np
 import pandas as pd
@@ -7,17 +7,24 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 MAX_DOC_CHARS = 8000
 
+# These module-level variables cache the product catalog and TF-IDF matrix.
+# Flask builds them once at startup, then every recommendation request can reuse
+# the same vectors instead of recomputing them.
 _catalog = None
 _matrix = None
 
 
 def build_product_catalog(df):
+    # Collapse many reviews per product into one searchable document.
+    # Each product can have many review rows, but recommendations should compare
+    # products, not individual reviews, so all review text is joined by title.
     text_col = "processed_review" if "processed_review" in df.columns else "review_text"
     records = []
 
     for title, group in df.groupby("product_title", sort=False):
         texts = group[text_col].fillna("").astype(str)
         doc = " ".join(t for t in texts if t.strip())
+        # Limit very long documents so the vectorizer stays fast and memory-friendly.
         if len(doc) > MAX_DOC_CHARS:
             doc = doc[:MAX_DOC_CHARS]
 
@@ -37,12 +44,18 @@ def build_product_catalog(df):
 
 
 def build_similarity_index(catalog):
+    # Convert product review documents into TF-IDF vectors for similarity search.
+    # TF-IDF gives more weight to words that describe a product well, while cosine
+    # similarity later compares the direction of those word-weight vectors.
     vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2), min_df=2)
     matrix = vectorizer.fit_transform(catalog["doc_text"].fillna(""))
     return vectorizer, matrix
 
 
 def init_recommendations(df):
+    # Build the recommendation index once when Flask starts.
+    # Returning the catalog/matrix is useful for debugging, but the important part
+    # is storing them in the module cache for get_similar_products().
     global _catalog, _matrix
     _catalog = build_product_catalog(df)
     if _catalog.empty:
@@ -53,6 +66,9 @@ def init_recommendations(df):
 
 
 def get_similar_products(product_title, k=12):
+    # Rank products by cosine similarity to the selected product.
+    # The selected product is removed from its own results, then the highest scoring
+    # different products are returned for the product page and recommendation page.
     if _catalog is None or _matrix is None or _catalog.empty:
         return []
 

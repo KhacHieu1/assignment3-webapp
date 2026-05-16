@@ -3,6 +3,7 @@
 {% block body_class %}page-create-review{% endblock %}
 
 {% block content %}
+{# Review creation page with model preview and override controls. #}
 <div class="narrow-page">
     <header class="page-intro">
         <p class="eyebrow">Create review · {{ product.brand_name }}</p>
@@ -36,6 +37,7 @@
                 <input class="input" id="username" name="username" type="text" required minlength="2" maxlength="40" placeholder="e.g. Alex">
             </div>
 
+            {# Live model prediction shown before the review is submitted. #}
             <fieldset class="panel panel-inner">
                 <legend class="panel-title-sm">AI buyer-label prediction</legend>
                 <div class="prediction-box" data-prediction-box>
@@ -53,6 +55,7 @@
                 </div>
             </fieldset>
 
+            {# Reviewer can accept the AI label or manually override it. #}
             <fieldset class="override-fieldset">
                 <legend class="panel-title-sm">Label choice</legend>
                 <label class="radio-row">
@@ -81,6 +84,7 @@
             </div>
         </form>
 
+        {# Side panel keeps the reviewed product visible while writing. #}
         <aside class="aside-hints panel">
     <div class="product-mini">
         <img src="{{ url_for('static', filename=product.image) }}" alt="" width="120" height="150" loading="lazy">

@@ -3,6 +3,7 @@
 {% block body_class %}page-admin{% endblock %}
 
 {% block content %}
+{# Admin dashboard summarises dataset and model performance. #}
 <div class="admin-page">
     <header class="page-intro admin-intro">
         <p class="eyebrow">Additional feature · Analytics</p>
@@ -10,6 +11,7 @@
         <p class="page-lead">Live aggregates from your dataframe—pair with real model metrics when training is wired.</p>
     </header>
 
+    {# Top-level counts for quick project insight. #}
     <section class="stat-grid" aria-label="Key statistics">
         <article class="stat-card">
             <p class="stat-label">Unique products</p>
@@ -29,6 +31,7 @@
         </article>
     </section>
 
+    {# Charts and model metadata for the analytics view. #}
     <div class="admin-grid">
         <section class="panel admin-chart-card">
             <h2 class="panel-title">Review rating distribution</h2>

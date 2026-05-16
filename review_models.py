@@ -1,7 +1,12 @@
+"""Buyer-label models for predicting Would buy / Would not buy."""
+
 import re
 
 import pandas as pd
 
+# Scikit-learn is used for the real prediction models.
+# The try/except keeps the Flask app usable even if the package is missing on
+# another computer; in that case the code falls back to a simple keyword score.
 try:
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -16,6 +21,9 @@ except ImportError:
     SKLEARN_READY = False
 
 
+# These word lists are used by the language-cue model and the fallback predictor.
+# They give the model direct signals for obvious review language such as "love",
+# "hate", "recommend", or "waste", which helps when the review text is very short.
 POSITIVE_WORDS = {
     "amazing", "best", "bright", "buy", "effective", "excellent", "fresh",
     "gentle", "glow", "good", "great", "happy", "hydrating", "impressed",
@@ -32,6 +40,9 @@ NOT_BUY_WORDS = {"avoid", "never", "refund", "return", "waste", "worthless"}
 
 
 def clean_review_text(review_text):
+    # Normalise free-text reviews before vectorising or counting cue words.
+    # Lowercasing, punctuation removal, and repeated-letter cleanup make user input
+    # like "I HATEEEE it!!!" easier to compare with the training data.
     review_text = str(review_text or "").lower()
     review_text = re.sub(r"[^a-z0-9\s]", " ", review_text)
     review_text = re.sub(r"([a-z])\1{2,}", r"\1", review_text)
@@ -40,6 +51,7 @@ def clean_review_text(review_text):
 
 
 def binary_label(value):
+    # Convert a boolean model result into the binary label shown in the interface.
     return "Would buy" if bool(value) else "Would not buy"
 
 
@@ -48,6 +60,9 @@ def _as_buyer_bool(value):
 
 
 def _combined_text(row):
+    # Use both review title and review body as text-model input.
+    # The title often contains strong sentiment, so it is useful evidence together
+    # with the longer review description.
     title = str(row.get("review_title", "") or "")
     processed = str(row.get("processed_review", "") or "")
     raw = str(row.get("review_text", "") or "")
@@ -55,6 +70,9 @@ def _combined_text(row):
 
 
 def _cue_features_from_text(text):
+    # Create simple sentiment and purchase-intent features for the cue model.
+    # Instead of using the whole text, this model counts meaningful cues such as
+    # positive words, negative words, buy intent, and not-buy intent.
     cleaned = clean_review_text(text)
     words = cleaned.split()
     word_set = set(words)
@@ -86,6 +104,9 @@ def _cue_feature_frame(texts):
 
 
 def _metadata_feature_frame(rows):
+    # Build numeric features from rating, product average rating, and price.
+    # Missing review ratings fall back to the product average, then to a neutral 3,
+    # so the model can still predict when a field is blank.
     frame = pd.DataFrame(rows).copy()
     for col in ["review_rating", "avg_product_rating", "price"]:
         frame[col] = pd.to_numeric(frame.get(col, 0), errors="coerce")
@@ -99,6 +120,9 @@ def _metadata_feature_frame(rows):
 
 
 def _fallback_probability(review_text, review_rating=None, avg_product_rating=None):
+    # Keyword fallback used only when model training is unavailable.
+    # It starts from a neutral buyer probability, then adjusts the score using star
+    # rating, positive/negative words, and buy/not-buy phrases.
     features = _cue_features_from_text(review_text)
     rating = pd.to_numeric(pd.Series([review_rating]), errors="coerce").iloc[0]
     avg_rating = pd.to_numeric(pd.Series([avg_product_rating]), errors="coerce").iloc[0]
@@ -114,6 +138,9 @@ def _fallback_probability(review_text, review_rating=None, avg_product_rating=No
 
 
 def train_review_label_ensemble(df):
+    # Train three different models and combine them for the final buyer label.
+    # Keeping them separate makes the prediction easier to explain: one model reads
+    # text, one reads numeric product/review metadata, and one reads language cues.
     if not SKLEARN_READY:
         return {
             "ready": False,
@@ -123,6 +150,9 @@ def train_review_label_ensemble(df):
         }
 
     model_df = df.copy()
+    # Build the training target.
+    # A rating of 4 or 5 is treated as "Would buy"; if a rating is missing, the
+    # original buyer flag is used as the backup label.
     ratings = pd.to_numeric(model_df.get("review_rating"), errors="coerce")
     buyer_fallback = model_df["is_a_buyer"].apply(_as_buyer_bool)
     model_df["target"] = (ratings >= 4).where(ratings.notna(), buyer_fallback).astype(int)
@@ -147,6 +177,7 @@ def train_review_label_ensemble(df):
             ("clf", LogisticRegression(max_iter=1000, random_state=42)),
         ]
     )
+    # Model 1 uses review text; model 2 uses numeric metadata; model 3 uses cues.
     metadata_model = Pipeline(
         [
             ("scale", StandardScaler()),
@@ -164,6 +195,9 @@ def train_review_label_ensemble(df):
     metadata_model.fit(_metadata_feature_frame(train_df), y_train)
     cue_model.fit(_cue_feature_frame(train_df["combined_text"]), y_train)
 
+    # Each model produces a probability on the validation split.
+    # These probabilities are used both for individual model accuracy and for the
+    # weighted ensemble that becomes the final prediction.
     text_prob = text_model.predict_proba(test_df["combined_text"])[:, 1]
     meta_prob = metadata_model.predict_proba(_metadata_feature_frame(test_df))[:, 1]
     cue_prob = cue_model.predict_proba(_cue_feature_frame(test_df["combined_text"]))[:, 1]
@@ -173,6 +207,9 @@ def train_review_label_ensemble(df):
         "metadata": float(accuracy_score(y_test, meta_prob >= 0.5)),
         "language_cues": float(accuracy_score(y_test, cue_prob >= 0.5)),
     }
+    # Give rating/cue models more voice because text labels can be noisy.
+    # This prevents one strange text prediction from overpowering a clear low or
+    # high star rating and obvious sentiment words.
     weights = {
         "text": max(metrics["text"], 0.01),
         "metadata": max(metrics["metadata"] * 3, 0.01),
@@ -200,6 +237,9 @@ def train_review_label_ensemble(df):
 
 
 def predict_review_label(ensemble, review_text, review_title="", context=None):
+    # Return a template-friendly prediction with final label and model votes.
+    # The Flask routes use this one function for both the live preview and final
+    # saved review so the displayed suggestion matches the saved result.
     context = context or {}
     combined_text = clean_review_text(f"{review_title} {review_text}")
 
@@ -214,6 +254,8 @@ def predict_review_label(ensemble, review_text, review_title="", context=None):
         }
 
     if not ensemble or not ensemble.get("ready"):
+        # If trained models are unavailable, return the keyword fallback in the
+        # same structure as the normal ensemble result.
         probability = _fallback_probability(
             combined_text,
             context.get("review_rating"),
@@ -247,6 +289,9 @@ def predict_review_label(ensemble, review_text, review_title="", context=None):
     weights = ensemble.get("weights", {})
 
     model_outputs = [
+        # Each model returns a probability that the reviewer would buy.
+        # The model names and data descriptions are shown in the review form so the
+        # prediction is not just a black box.
         (
             "Text TF-IDF Logistic Regression",
             "review title and description",
@@ -274,6 +319,9 @@ def predict_review_label(ensemble, review_text, review_title="", context=None):
     ) / total_weight
     would_buy = fused_probability >= 0.5
 
+    # Save each model's vote separately for display.
+    # The final label comes from the fused probability, but the vote list helps the
+    # reviewer understand why the website suggested that label.
     votes = []
     for name, data_used, key, probability in model_outputs:
         vote_buy = probability >= 0.5
