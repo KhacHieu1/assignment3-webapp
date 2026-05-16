@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from recommendations import init_recommendations, get_similar_products
 from review_models import binary_label, predict_review_label, train_review_label_ensemble
+from beauty_advisor import init_advisor, recommend_single, recommend_set, get_brands
 import pandas as pd
 import json
 from pathlib import Path
@@ -113,6 +114,7 @@ review_label_ensemble = train_review_label_ensemble(df)
 review_model_accuracy = review_label_ensemble.get("fused_accuracy")
 refresh_legacy_review_labels()
 init_recommendations(df)
+init_advisor(df, df_original)
 
 @app.context_processor
 def inject_nav():
@@ -301,7 +303,6 @@ def review_prediction_api():
         "confidence": prediction["confidence"],
         "source": prediction["source"],
         "votes": prediction["votes"],
-        "fused_accuracy": prediction.get("fused_accuracy"),
         "model_accuracy": review_model_accuracy,
     })
 
@@ -505,6 +506,59 @@ def review_detail(review_id):
             ("Home", url_for("home")),
             ("Product", product_link),
             ("Review #%s" % review_id, None),
+        ],
+    )
+
+
+def enrich_advisor_cards(result):
+    if not result or not result.get("ok"):
+        return result
+
+    def attach(card):
+        if card:
+            card["image"] = image_for_review_id(card["review_id"])
+        return card
+
+    if result.get("main"):
+        attach(result["main"])
+    for key in ("extras", "set_items", "supplements"):
+        if result.get(key):
+            result[key] = [attach(card) for card in result[key]]
+    return result
+
+
+@app.route("/beauty-advisor", methods=["GET", "POST"])
+def beauty_advisor():
+    form = {
+        "budget": request.form.get("budget", "") if request.method == "POST" else "",
+        "mode": request.form.get("mode", "single") if request.method == "POST" else "single",
+        "brand_pref": request.form.get("brand_pref", "").strip() if request.method == "POST" else "",
+        "product_type": request.form.get("product_type", "").strip() if request.method == "POST" else "",
+    }
+    result = None
+
+    if request.method == "POST":
+        try:
+            budget = float(form["budget"])
+        except (TypeError, ValueError):
+            budget = 0
+        if budget <= 0:
+            flash("Please enter a valid budget greater than zero.", "error")
+        else:
+            if form["mode"] == "set":
+                result = recommend_set(budget, form["brand_pref"], form["product_type"])
+            else:
+                result = recommend_single(budget, form["brand_pref"], form["product_type"])
+            result = enrich_advisor_cards(result)
+
+    return render_template(
+        "beauty_advisor.html",
+        form=form,
+        result=result,
+        brands=get_brands(),
+        breadcrumb=[
+            ("Home", url_for("home")),
+            ("Beauty Advisor", None),
         ],
     )
 

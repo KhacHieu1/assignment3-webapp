@@ -39,6 +39,7 @@
                         {% endfor %}
                     </div>
                 </div>
+                <a href="{{ url_for('beauty_advisor') }}" class="nav-link">Beauty Advisor</a>
                 <a href="{{ url_for('admin') }}" class="nav-link nav-link-muted">Insights</a>
             </nav>
 
@@ -99,6 +100,7 @@
                     <li><a href="{{ url_for('home') }}">New in</a></li>
                     <li><a href="{{ url_for('search', query='Olay') }}">Skincare</a></li>
                     <li><a href="{{ url_for('search', query='Lipstick') }}">Makeup</a></li>
+                    <li><a href="{{ url_for('beauty_advisor') }}">Beauty Advisor</a></li>
                     <li><a href="{{ url_for('admin') }}">Insights</a></li>
                 </ul>
             </div>

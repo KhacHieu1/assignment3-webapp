@@ -2,3 +2,4 @@ flask
 pandas
 python-dateutil
 scikit-learn
+numpy
