@@ -29,53 +29,19 @@ NUM_IMAGES = 6
 new_reviews = []
 
 
-<<<<<<< Updated upstream
 def clean_review_text(review_text):
     # Clean new review text before sending it to the ML model
     review_text = str(review_text).lower()
     review_text = re.sub(r'[^a-z0-9\s]', ' ', review_text)
     review_text = re.sub(r'\s+', ' ', review_text).strip()
     return review_text
-=======
-def load_created_reviews():
-    if not CREATED_REVIEWS_PATH.exists():
-        return []
-    try:
-        with open(CREATED_REVIEWS_PATH, "r", encoding="utf-8") as f:
-            reviews = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return []
-    return reviews if isinstance(reviews, list) else []
 
-
-def save_created_reviews():
-    payload = json.dumps(created_reviews, ensure_ascii=False, indent=2)
-    try:
-        CREATED_REVIEWS_PATH.write_text(payload, encoding="utf-8")
-        saved_reviews = json.loads(CREATED_REVIEWS_PATH.read_text(encoding="utf-8"))
-        if not isinstance(saved_reviews, list) or len(saved_reviews) != len(created_reviews):
-            raise OSError("created_reviews.json did not update correctly")
-        return True
-    except (OSError, json.JSONDecodeError) as exc:
-        print("Could not save created review:", exc)
-        return False
-
-
-created_reviews = load_created_reviews()
 
 from recommendations import init_recommendations, get_similar_products
 from beauty_advisor import init_advisor, recommend_single, recommend_set, get_brands
 
 init_recommendations(df)
 init_advisor(df, df_original)
-
-
-def clean_review_text(text):
-    text = str(text).lower()
-    text = re.sub(r"[^a-z0-9\s]", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
->>>>>>> Stashed changes
 
 
 def rating_to_sentiment(rating):
@@ -388,11 +354,21 @@ def product_detail(review_id):
     pr = str(product_info.get("processed_review", "") or "")
     product_dict["tags"] = pr.split()[:10] if pr else []
 
+    show_all_reviews = request.args.get("show_all", "").lower() in {"1", "true", "yes"}
+    total_reviews = len(reviews)
+    if not show_all_reviews and total_reviews > 10:
+        reviews = reviews[:10]
+        more_reviews = total_reviews - 10
+    else:
+        more_reviews = 0
+
     return render_template(
         "product.html",
         product=product_dict,
         reviews=reviews,
         similar_products=similar,
+        more_reviews=more_reviews,
+        show_all_reviews=show_all_reviews,
         breadcrumb=[
             ("Home", url_for("home")),
             ("Search", url_for("search", query=str(brand)[:40] if brand else "beauty")),
