@@ -293,7 +293,6 @@ def review_prediction_api():
         "rating": prediction["rating"],
         "sentiment": prediction["sentiment"],
         "confidence": prediction["confidence"],
-        "source": prediction["source"],
         "model_accuracy": review_model_accuracy,
     })
 
@@ -404,7 +403,8 @@ def create_review(review_id):
             # Run ML prediction on the submitted review text
             review_result = predict_review_rating(review_text)
             new_review = {
-                "review_id": 0,
+                "review_id": len(new_reviews) + 1,
+                "product_review_id": review_id,
                 "review_title": review_title if review_title else "New customer review",
                 "review_text": review_text,
                 "review_rating": user_rating if user_rating else review_result["rating"],
@@ -416,7 +416,8 @@ def create_review(review_id):
                 "price": product_info.get("price", 0),
                 "predicted_sentiment": review_result["sentiment"],
                 "prediction_confidence": review_result["confidence"],
-                "created_by_user": True
+                "created_by_user": True,
+                "predicted_rating": review_result["rating"],
          }
             # Store the new review in memory for this session
             new_reviews.insert(0, new_review)
