@@ -29,12 +29,53 @@ NUM_IMAGES = 6
 new_reviews = []
 
 
+<<<<<<< Updated upstream
 def clean_review_text(review_text):
     # Clean new review text before sending it to the ML model
     review_text = str(review_text).lower()
     review_text = re.sub(r'[^a-z0-9\s]', ' ', review_text)
     review_text = re.sub(r'\s+', ' ', review_text).strip()
     return review_text
+=======
+def load_created_reviews():
+    if not CREATED_REVIEWS_PATH.exists():
+        return []
+    try:
+        with open(CREATED_REVIEWS_PATH, "r", encoding="utf-8") as f:
+            reviews = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return []
+    return reviews if isinstance(reviews, list) else []
+
+
+def save_created_reviews():
+    payload = json.dumps(created_reviews, ensure_ascii=False, indent=2)
+    try:
+        CREATED_REVIEWS_PATH.write_text(payload, encoding="utf-8")
+        saved_reviews = json.loads(CREATED_REVIEWS_PATH.read_text(encoding="utf-8"))
+        if not isinstance(saved_reviews, list) or len(saved_reviews) != len(created_reviews):
+            raise OSError("created_reviews.json did not update correctly")
+        return True
+    except (OSError, json.JSONDecodeError) as exc:
+        print("Could not save created review:", exc)
+        return False
+
+
+created_reviews = load_created_reviews()
+
+from recommendations import init_recommendations, get_similar_products
+from beauty_advisor import init_advisor, recommend_single, recommend_set, get_brands
+
+init_recommendations(df)
+init_advisor(df, df_original)
+
+
+def clean_review_text(text):
+    text = str(text).lower()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+>>>>>>> Stashed changes
 
 
 def rating_to_sentiment(rating):
@@ -472,6 +513,59 @@ def review_detail(review_id):
             ("Home", url_for("home")),
             ("Product", product_link),
             ("Review #%s" % review_id, None),
+        ],
+    )
+
+
+def enrich_advisor_cards(result):
+    if not result or not result.get("ok"):
+        return result
+
+    def attach(card):
+        if card:
+            card["image"] = image_for_review_id(card["review_id"])
+        return card
+
+    if result.get("main"):
+        attach(result["main"])
+    for key in ("extras", "set_items", "supplements"):
+        if result.get(key):
+            result[key] = [attach(card) for card in result[key]]
+    return result
+
+
+@app.route("/beauty-advisor", methods=["GET", "POST"])
+def beauty_advisor():
+    form = {
+        "budget": request.form.get("budget", "") if request.method == "POST" else "",
+        "mode": request.form.get("mode", "single") if request.method == "POST" else "single",
+        "brand_pref": request.form.get("brand_pref", "").strip() if request.method == "POST" else "",
+        "product_type": request.form.get("product_type", "").strip() if request.method == "POST" else "",
+    }
+    result = None
+
+    if request.method == "POST":
+        try:
+            budget = float(form["budget"])
+        except (TypeError, ValueError):
+            budget = 0
+        if budget <= 0:
+            flash("Please enter a valid budget greater than zero.", "error")
+        else:
+            if form["mode"] == "set":
+                result = recommend_set(budget, form["brand_pref"], form["product_type"])
+            else:
+                result = recommend_single(budget, form["brand_pref"], form["product_type"])
+            result = enrich_advisor_cards(result)
+
+    return render_template(
+        "beauty_advisor.html",
+        form=form,
+        result=result,
+        brands=get_brands(),
+        breadcrumb=[
+            ("Home", url_for("home")),
+            ("Beauty Advisor", None),
         ],
     )
 
