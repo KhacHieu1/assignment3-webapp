@@ -105,6 +105,11 @@
         </article>
         {% endfor %}
     </div>
+    {% if more_reviews %}
+    <div class="section-footer">
+        <a href="{{ url_for('product_detail', review_id=product.review_id, show_all=1) }}" class="btn btn-secondary">See {{ more_reviews }} more review{{ 's' if more_reviews != 1 else '' }}</a>
+    </div>
+    {% endif %}
 </section>
 
 <section id="similar" class="section section-tint" aria-labelledby="similar-heading">

@@ -357,11 +357,21 @@ def product_detail(review_id):
     pr = str(product_info.get("processed_review", "") or "")
     product_dict["tags"] = pr.split()[:10] if pr else []
 
+    show_all_reviews = request.args.get("show_all", "").lower() in {"1", "true", "yes"}
+    total_reviews = len(reviews)
+    if not show_all_reviews and total_reviews > 10:
+        reviews = reviews[:10]
+        more_reviews = total_reviews - 10
+    else:
+        more_reviews = 0
+
     return render_template(
         "product.html",
         product=product_dict,
         reviews=reviews,
         similar_products=similar,
+        more_reviews=more_reviews,
+        show_all_reviews=show_all_reviews,
         breadcrumb=[
             ("Home", url_for("home")),
             ("Search", url_for("search", query=str(brand)[:40] if brand else "beauty")),
