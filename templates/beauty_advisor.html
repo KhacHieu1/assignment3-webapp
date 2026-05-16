@@ -27,6 +27,10 @@
                     <span>Single product</span>
                 </label>
                 <label class="advisor-mode-option">
+                    <input type="radio" name="mode" value="list" {% if form.mode == 'list' %}checked{% endif %}>
+                    <span>List of products</span>
+                </label>
+                <label class="advisor-mode-option">
                     <input type="radio" name="mode" value="set" {% if form.mode == 'set' %}checked{% endif %}>
                     <span>Complete skincare set</span>
                 </label>
@@ -103,6 +107,27 @@
                 </a>
             </article>
         </div>
+        {% if result.candidates %}
+        <h4 class="advisor-subtitle">Other good matches</h4>
+        <div class="advisor-card-grid advisor-card-grid-compact">
+            {% for card in result.candidates %}
+                {% if card.review_id != result.main.review_id %}
+                <article class="advisor-card panel">
+                    <a href="{{ url_for('product_detail', review_id=card.review_id) }}" class="advisor-card-link">
+                        <img src="{{ url_for('static', filename=card.image) }}" alt="" width="140" height="180" loading="lazy">
+                        <p class="product-brand">{{ card.brand_name }}</p>
+                        <h4 class="product-name">{{ card.product_title }}</h4>
+                        <p class="product-meta"><span class="price">₹{{ "%.0f"|format(card.price) }}</span><span class="rating">{{ "%.1f"|format(card.avg_product_rating) }} ★</span></p>
+                        <p class="advisor-card-meta">{{ card.category|capitalize }} · Match {{ card.score }}%</p>
+                    </a>
+                </article>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% if result.more_candidates %}
+        <p class="field-hint"><a href="{{ url_for('beauty_advisor') }}?budget={{ result.budget }}&mode=list&brand_pref={{ result.brand_pref }}&product_type={{ result.product_type }}">See {{ result.more_candidates }} more product{{ 's' if result.more_candidates != 1 else '' }}</a></p>
+        {% endif %}
+        {% endif %}
         {% if result.extras %}
         <h3 class="advisor-section-title">Use your remaining budget</h3>
         <div class="advisor-card-grid">
@@ -118,6 +143,29 @@
             </article>
             {% endfor %}
         </div>
+        {% if result.more_extras %}
+        <p class="field-hint"><a href="{{ url_for('beauty_advisor') }}?budget={{ result.budget }}&mode=single&brand_pref={{ result.brand_pref }}&product_type={{ result.product_type }}">See {{ result.more_extras }} more add-on{{ 's' if result.more_extras != 1 else '' }}</a></p>
+        {% endif %}
+        {% endif %}
+
+        {% if result.mode == 'list' %}
+        <h3 class="advisor-section-title">Top matching products</h3>
+        <div class="advisor-card-grid">
+            {% for card in result.candidates %}
+            <article class="advisor-card panel">
+                <a href="{{ url_for('product_detail', review_id=card.review_id) }}" class="advisor-card-link">
+                    <img src="{{ url_for('static', filename=card.image) }}" alt="" width="160" height="200" loading="lazy">
+                    <p class="product-brand">{{ card.brand_name }}</p>
+                    <h4 class="product-name">{{ card.product_title }}</h4>
+                    <p class="product-meta"><span class="price">₹{{ "%.0f"|format(card.price) }}</span><span class="rating">{{ "%.1f"|format(card.avg_product_rating) }} ★</span></p>
+                    <p class="advisor-card-meta">{{ card.category|capitalize }} · Match {{ card.score }}%</p>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+        {% if result.more_candidates %}
+        <p class="field-hint"><a href="{{ url_for('beauty_advisor') }}?budget={{ result.budget }}&mode=list&brand_pref={{ result.brand_pref }}&product_type={{ result.product_type }}">See {{ result.more_candidates }} more product{{ 's' if result.more_candidates != 1 else '' }}</a></p>
+        {% endif %}
         {% endif %}
 
         {% else %}

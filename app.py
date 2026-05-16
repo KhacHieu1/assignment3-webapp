@@ -10,10 +10,9 @@ from pathlib import Path
 
 app = Flask(__name__)
 app.secret_key = "velora-dev-secret-change-in-production"
-
-# Load the main processed dataset and the original review dataset.
-# The processed file is used for search/model features, while the original file
-# still contains useful raw fields such as the star rating.
+# Task 1: I load processed.csv from Milestone 1 and merge in review_rating from the
+# original CSV since it wasn't saved during preprocessing.
+# Loading once at startup keeps search requests fast instead of reloading each time.
 df = pd.read_csv("processed.csv")
 df_original = pd.read_csv("cosmetics_beauty_products_reviews.csv")
 
@@ -195,10 +194,10 @@ def find_created_review(review_id):
             return review
     return None
 
-
-# Search uses a simple AND match: every query word must appear somewhere in the
-# product brand, product title, or processed review text. This makes partial
-# searches predictable without adding another search library.
+# Task 1: I combine brand name, product title and review text into one string per product
+# so I only need one pass to check all keyword matches.
+# Lowercasing and stripping apostrophes handles cases like "loreal" matching
+# "L'Oreal Paris" and makes the search case-insensitive as required.
 def search_mask(query):
     # Match all query words against brand, title, and processed review text.
     query_lower = query.strip().lower()
@@ -216,7 +215,10 @@ def search_mask(query):
         mask = mask & combined.str.contains(keyword, na=False, regex=False)
     return mask
 
-
+# Task 1: After filtering I rank results by how well they match the query.
+# A full query match in the brand name scores highest (+25), then product title (+20),
+# then individual keywords add smaller scores on top.
+# This puts the most relevant products first without needing a complex ML model.
 def relevance_score(query, row):
     """Simple deterministic pseudo-score for UI (tutor-visible ranking signal)."""
     q = query.lower().strip()
@@ -259,7 +261,9 @@ def home():
         categories=categories,
     )
 
-
+# Task 1: Search route — takes the query from the URL, runs search_mask to filter
+# matching products, scores and sorts them by relevance, then passes
+# up to 48 deduplicated results to the results page.
 @app.route("/search")
 def search():
     # Search first filters rows by the query, then removes duplicate product titles.
@@ -295,7 +299,8 @@ def search():
         count=count,
     )
 
-
+# Task 1: Autocomplete endpoint — as the user types, this returns up to 12 matching
+# brand names and product titles as JSON for the search bar suggestions.
 @app.route("/api/suggestions")
 def suggestions():
     # This API supports the search bar autocomplete.
@@ -353,7 +358,9 @@ def review_prediction_api():
         "model_accuracy": review_model_accuracy,
     })
 
-
+# Task 1: Product detail route — loads all reviews for the product, calculates buyer
+# ratio, fetches similar products, and prepends any new user reviews to the top.
+# The review_id in the URL identifies which product to show.
 @app.route("/product/<int:review_id>")
 def product_detail(review_id):
     # The product page starts from one review_id, then finds all reviews for the
@@ -596,7 +603,7 @@ def enrich_advisor_cards(result):
 
     if result.get("main"):
         attach(result["main"])
-    for key in ("extras", "set_items", "supplements"):
+    for key in ("extras", "set_items", "supplements", "candidates"):
         if result.get(key):
             result[key] = [attach(card) for card in result[key]]
     return result
@@ -615,7 +622,19 @@ def beauty_advisor():
     }
     result = None
 
+    # Support both POST (form submit) and GET (see-more links using query params)
+    do_compute = False
     if request.method == "POST":
+        do_compute = True
+    elif request.method == "GET" and request.args.get("budget"):
+        # populate form from query string for 'see more' links
+        form["budget"] = request.args.get("budget", form["budget"])
+        form["mode"] = request.args.get("mode", form["mode"])
+        form["brand_pref"] = request.args.get("brand_pref", form["brand_pref"]).strip()
+        form["product_type"] = request.args.get("product_type", form["product_type"]).strip()
+        do_compute = True
+
+    if do_compute:
         try:
             budget = float(form["budget"])
         except (TypeError, ValueError):
@@ -627,6 +646,10 @@ def beauty_advisor():
                 result = recommend_set(budget, form["brand_pref"], form["product_type"])
             else:
                 result = recommend_single(budget, form["brand_pref"], form["product_type"])
+            # include form context for template links
+            if isinstance(result, dict):
+                result["brand_pref"] = form["brand_pref"]
+                result["product_type"] = form["product_type"]
             result = enrich_advisor_cards(result)
 
     return render_template(
